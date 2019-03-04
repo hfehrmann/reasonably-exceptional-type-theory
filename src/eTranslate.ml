@@ -297,9 +297,8 @@ let rec otranslate env sigma c = match EConstr.kind sigma c with
       ( if is_prop_sort sort && not match_on_prop then
           raise MatchEliminationNotSupportedOnTranslation )
     else
-      let p_sigma, r_end_type = Typing.type_of p_env_src sigma r_end in
-      let sort = S.kind p_sigma (destSort p_sigma r_end_type) in
-      if is_prop_sort sort && not match_on_prop then
+      let r_sort = Typing.e_sort_of p_env_src (ref sigma) r_end in
+      if is_prop_sort r_sort && not match_on_prop then
         raise MatchEliminationNotSupportedOnTranslation
   in
   let ci_translator = if match_on_prop then translate_prop_case_info else translate_case_info in
@@ -651,6 +650,7 @@ let translate_primitive_record env sigma mind_d mind_e =
   let (sigma, constr_type) = translate_constructors env sigma mind_d mind_e ind_d ind_e in
   let constr_type = List.hd constr_type in
   let constr_type_name = name_projection_translate sigma translate_name constr_type in
+
   let ind = { ind_e with 
               mind_entry_typename = ind_name;
               mind_entry_arity = EConstr.to_constr sigma ar;
