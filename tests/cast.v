@@ -175,10 +175,24 @@ end.
 Effect List Translate Nat.add Nat.sub Nat.mul.
 Effect List Translate app.
 Effect List Translate option.
-Effect List Translate 
-       binop exp evalBinop evalExp instr prog stack runInstr runProg compile.
+Effect List Translate binop exp evalBinop evalExp instr prog stack runInstr runProg compile.
 
-Print compileᵉ.
+Definition correct_program e (ex: exp) (p: prog): Prop :=
+  runProg e p nil = Some [(evalExp ex)].
 
-Theorem compile_correct: forall e exp_term,
-    runProg e (compile e exp_term) nil = Some (evalExp exp_term :: nil).
+Effect Translate correct_program.
+
+
+Definition bigger_nat (e: Exception) := 
+  existT (fun n => n > 2) 1 (raise _ e).
+Effect List Translate sigT le lt gt.
+
+
+
+Inductive vec (A: Type): nat -> Type :=
+| vnil: vec A 0
+| vcons: forall n, vec A n -> vec A (S n).
+
+Effect Translate vec.
+Unset Printing Notations.
+Print vec_instanceᵉ.

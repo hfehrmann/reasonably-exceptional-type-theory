@@ -195,6 +195,7 @@ let translate_constant err translator cst ids =
   let body, _ = Option.get (Global.body_of_constant cst) in
   let body = EConstr.of_constr body in
   let (sigma, body) = ETranslate.translate err translator env sigma body in
+  let _ = Feedback.msg_info (Printer.pr_econstr body) in
   let evdref = ref sigma in
   let () = Typing.e_check env evdref body typ in
   let sigma = !evdref in

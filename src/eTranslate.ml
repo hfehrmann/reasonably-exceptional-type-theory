@@ -951,7 +951,19 @@ let param_instance_inductive err translator env (name,name_e,name_param) (one_d,
   let args = List.map (fun i -> Vars.lift 1 i) args in
   let inner_func = applist (ind_p, args) in
   let func = mkLambda (Anonymous, ty, mkApp (inner_func, [| mkRel 1 |])) in
-  
+
+  let param_raise_ctx = Context.Rel.empty in
+  let sigma, tm_exc_e = Evd.fresh_global env sigma (ConstRef tm_exception_e) in 
+  let tm_exc_e = EConstr.of_constr tm_exc_e in
+  let tm_exc_e_tm = mkApp (tm_exc_e, [|mkRel e|]) in
+  let param_raise_ctx = Context.Rel.add (LocalAssum (Anonymous, tm_exc_e_tm)) param_raise_ctx in
+  let sigma, raise_ = Evd.fresh_global env sigma (ConstRef tm_raise_e) in
+  let new_ty = Vars.lift 1 ty in 
+  let param_raise_tm = mkApp (mkRel (e + 1), [|mkRel (e + 2); new_ty; mkRel 1|]) in
+  let param_raise_ctx = Context.Rel.add (LocalAssum (Anonymous, param_raise_tm)) param_raise_ctx in
+  let ss = it_mkLambda_or_LetIn (mkRel 1) param_raise_ctx in 
+  let _ = Feedback.msg_info (Printer.pr_econstr ss) in
+
   let body = mkApp (param_constr, [|param_ty; func|]) in
   let param_instance = it_mkLambda_or_LetIn body ctx in
   let sigma,_ = Typing.type_of env sigma param_instance in
