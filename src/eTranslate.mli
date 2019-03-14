@@ -47,13 +47,17 @@ val translate_inductive :
     Entries.mutual_inductive_entry -> Entries.mutual_inductive_entry
 
 val param_mutual_inductive :
-  effect -> translator -> Environ.env -> MutInd.t * MutInd.t -> Declarations.mutual_inductive_body -> 
-    Entries.mutual_inductive_entry -> Entries.mutual_inductive_entry 
+  effect -> translator -> Environ.env -> MutInd.t * MutInd.t -> Declarations.mutual_inductive_body ->
+    Entries.mutual_inductive_entry -> Entries.mutual_inductive_entry
 
-val param_instance_inductive : 
-  effect -> translator -> Environ.env -> MutInd.t * MutInd.t * MutInd.t-> 
+val param_instance_inductive :
+  effect -> translator -> Environ.env -> MutInd.t * MutInd.t * MutInd.t->
     Declarations.one_inductive_body * int -> Evd.evar_map * EConstr.t * EConstr.t
 
 val parametric_induction :
-  effect -> translator -> Environ.env -> MutInd.t -> Declarations.mutual_inductive_body -> 
+  effect -> translator -> Environ.env -> MutInd.t -> Declarations.mutual_inductive_body ->
     Evd.evar_map * EConstr.t * EConstr.t * EConstr.t
+
+val catch_induction :
+  effect -> translator -> Environ.env -> MutInd.t ->
+    Declarations.mutual_inductive_body * int -> unit

@@ -16,7 +16,7 @@ type effect = global_reference option
 exception MissingGlobal of effect * global_reference
 exception MissingPrimitive of global_reference
 exception MatchEliminationNotSupportedOnTranslation
-                            
+
 type 'a global_translation =
 | GlobGen of 'a
   (** Implementation generic over the type of exceptions *)
@@ -64,11 +64,11 @@ let translate_failure id =
   let id = Id.to_string id in
   Id.of_string (id ^ "ᴱ")
 
-let translate_param_name id = 
+let translate_param_name id =
   let id = Id.to_string id in
   Id.of_string (id ^ "_param")
 
-let translate_instance_name id = 
+let translate_instance_name id =
   let id = Id.to_string id in
   Id.of_string (id ^ "_instance")
 
@@ -109,9 +109,9 @@ let tm_raise_e = Constant.make1 (make_kn "raiseᵉ")
 
 
 let name_errtype = Id.of_string "E"
-let name_err = Id.of_string "e"  
+let name_err = Id.of_string "e"
 
-(** Handling of globals *) 
+(** Handling of globals *)
 
 let get_instance err = function
 | GlobGen x -> true, x
@@ -166,8 +166,8 @@ let fresh_global env sigma gr =
 (** Effect translation core *)
 
 let element env sigma is_prop c =
-  let (sigma, value) = 
-    if is_prop then 
+  let (sigma, value) =
+    if is_prop then
       (sigma, c)
     else
       let (sigma, el) = fresh_global env sigma el_e in
@@ -209,13 +209,13 @@ let mk_default_ind env sigma (ind, u) =
   (sigma, r)
 
 let mk_default_primitive_record env sigma (ind, u) =
-  let (modd, dir, lab) = (MutInd.repr3 (fst ind)) in 
-  let cst = Constant.make3 modd dir lab in 
-  let (gen, default) = get_cst env cst in 
-  let (sigma, r) = fresh_global env sigma default in 
+  let (modd, dir, lab) = (MutInd.repr3 (fst ind)) in
+  let cst = Constant.make3 modd dir lab in
+  let (gen, default) = get_cst env cst in
+  let (sigma, r) = fresh_global env sigma default in
   (sigma, gen, EInstance.kind sigma (snd (destConst sigma r)), r)
 
-let ind_in_prop mip = 
+let ind_in_prop mip =
   match mip.mind_arity with
   | RegularArity ar -> is_prop_sort ar.mind_sort
   | TemplateArity _ -> false
@@ -239,7 +239,7 @@ let rec otranslate env sigma c = match EConstr.kind sigma c with
   let (sigma,ty) = Typing.type_of env.env_src sigma c in
   let is_prop = isSort sigma ty && is_prop_sort (ESorts.kind sigma (destSort sigma ty)) in
   if is_prop then
-    let (sigma, ty) = otranslate_type env sigma c in 
+    let (sigma, ty) = otranslate_type env sigma c in
     (sigma, ty)
   else
   let e = mkRel (Environ.nb_rel env.env_tgt) in
@@ -291,9 +291,9 @@ let rec otranslate env sigma c = match EConstr.kind sigma c with
   let p_env_src = EConstr.push_rel_context r_ctx env.env_src in
   let match_on_prop = ind_in_prop mip in
   let () =
-    let module S = ESorts in 
+    let module S = ESorts in
     if isSort sigma r_end then
-      let sort = S.kind sigma (destSort sigma r_end) in 
+      let sort = S.kind sigma (destSort sigma r_end) in
       ( if is_prop_sort sort && not match_on_prop then
           raise MatchEliminationNotSupportedOnTranslation )
     else
@@ -337,7 +337,7 @@ let rec otranslate env sigma c = match EConstr.kind sigma c with
   let r = mkCoFix (fi, recdefe) in
   (sigma, r)
 | Proj (p, c) ->
-  let constant = Names.Projection.constant p in 
+  let constant = Names.Projection.constant p in
   let unfolded = Names.Projection.unfolded p in
   let _, glob_constante = get_cst env constant in
   let constante = Globnames.destConstRef glob_constante in
@@ -426,14 +426,14 @@ and otranslate_ind env sigma (ind, u) args =
     let (sigma, c) = apply_global env sigma (IndRef ind) in
     (sigma, if Array.length args == 0 then c else mkApp (c, args))
   else if Inductive.is_primitive_record (mib, mip) then
-    (** Primitive default constructor 
+    (** Primitive default constructor
         This is wrong *)
     let e_var = mkRel (Environ.nb_rel env.env_tgt) in
     let (sigma, c) = apply_global env sigma (IndRef ind) in
     let (sigma, gen, _, def) = mk_default_primitive_record env sigma (ind, u) in
     let (sigma, typeval) = fresh_global env sigma typeval_e in
     let r = mkApp (typeval, [| e_var; mkApp (c, args); mkApp (def, args) |]) in
-    let () = assert false in 
+    let () = assert false in
     (sigma, r)
   else if Int.equal (Array.length args) (mib.mind_nparams + mip.mind_nrealargs) then
     (** Fully applied *)
@@ -464,7 +464,7 @@ and otranslate_ind env sigma (ind, u) args =
     let u = EInstance.make u in
     let typ = applist (mkIndU (ind, u), arity) in
     let def_c = (ind, Array.length mip.mind_consnames) in
-    let def = applist (mkConstructU (def_c, u), arity) in 
+    let def = applist (mkConstructU (def_c, u), arity) in
     let r = mkApp (typeval, [| mkRel nctx; typ; def |]) in
     let r = it_mkLambda_or_LetIn r ctx in
     let r = if gen then mkApp (r, [| mkRel (Environ.nb_rel env.env_tgt) |]) else r in
@@ -538,11 +538,11 @@ let trans_name translation_function = function
   | Anonymous as anon -> anon
   | Name id -> Name (translation_function id)
 
-let name_projection_translate sigma translation_function record_builder = 
-  let rec aux sigma record_builder = 
+let name_projection_translate sigma translation_function record_builder =
+  let rec aux sigma record_builder =
     match EConstr.kind sigma record_builder with
-    | Prod (na, ty, bd) -> 
-       let trans_body = aux sigma bd in 
+    | Prod (na, ty, bd) ->
+       let trans_body = aux sigma bd in
        mkProd (trans_name translation_function na, ty, trans_body)
     | _ -> record_builder
   in
@@ -596,7 +596,7 @@ let translate_constructors env sigma mind0 mind ind0 ind =
     (sigma, te)
   in
   List.fold_map map sigma ind.mind_entry_lc
-  
+
 let translate_inductive_body env sigma mind0 mind n ind0 ind =
   let typename = translate_internal_name ind.mind_entry_typename in
   let is_prop = match ind0.mind_arity with
@@ -604,7 +604,7 @@ let translate_inductive_body env sigma mind0 mind n ind0 ind =
     | TemplateArity _ -> false
   in
   let constructors = List.map translate_name ind.mind_entry_consnames in
-  let nindices = List.length ind0.mind_arity_ctxt - List.length mind0.mind_params_ctxt in 
+  let nindices = List.length ind0.mind_arity_ctxt - List.length mind0.mind_params_ctxt in
   let arity_ctx, _ = List.chop nindices ind0.mind_arity_ctxt in
   let (sigma, arity_env, arity_ctx') = otranslate_context env sigma (List.map EConstr.of_rel_decl arity_ctx) in
   let inSort = if is_prop then InProp else InType in
@@ -619,9 +619,9 @@ let translate_inductive_body env sigma mind0 mind n ind0 ind =
   | LocalDef _ -> (succ n, accu)
   in
   (** FIXME, probably wrong indices for mutual inductive blocks *)
-  let (arity, fail_name_list, fail_case_list) = 
+  let (arity, fail_name_list, fail_case_list) =
     let arity = EConstr.to_constr sigma arity in
-    if not is_prop then 
+    if not is_prop then
       let (_, fail_args) = List.fold_left fail_arg (2, []) (Environ.rel_context arity_env.env_tgt) in
       let n = 1 + (mind0.mind_ntypes - n) + Environ.nb_rel arity_env.env_tgt in
       let fail_case = applist (mkRel n, fail_args) in
@@ -641,8 +641,8 @@ let translate_inductive_body env sigma mind0 mind n ind0 ind =
 
 let translate_primitive_record env sigma mind_d mind_e =
   let _, env = extend_inductive env mind_d mind_e in
-  let ind_e = List.hd mind_e.mind_entry_inds in 
-  let ind_d = mind_d.mind_packets.(0) in 
+  let ind_e = List.hd mind_e.mind_entry_inds in
+  let ind_d = mind_d.mind_packets.(0) in
   let ind_name = translate_internal_name ind_e.mind_entry_typename in
   let (sigma, sort) = Evd.fresh_sort_in_family ~rigid:Evd.UnivRigid env.env_tgt sigma InType in
   let ar = mkSort sort in
@@ -651,11 +651,11 @@ let translate_primitive_record env sigma mind_d mind_e =
   let constr_type = List.hd constr_type in
   let constr_type_name = name_projection_translate sigma translate_name constr_type in
 
-  let ind = { ind_e with 
+  let ind = { ind_e with
               mind_entry_typename = ind_name;
               mind_entry_arity = EConstr.to_constr sigma ar;
               mind_entry_consnames = [cons_name];
-              mind_entry_lc = [EConstr.to_constr sigma constr_type_name] 
+              mind_entry_lc = [EConstr.to_constr sigma constr_type_name]
             }
   in
   (sigma, ind)
@@ -664,11 +664,11 @@ let translate_inductive err translator env _ mind0 (mind : Entries.mutual_induct
   let sigma = Evd.from_env env in
   let (sigma, env) = make_context err translator env sigma in
   let (sigma, env, _) = otranslate_context env sigma (List.map EConstr.of_rel_decl mind0.mind_params_ctxt) in
-  let (sigma, inds) = 
-    if Inductive.is_primitive_record (mind0,mind0.mind_packets.(0)) then 
+  let (sigma, inds) =
+    if Inductive.is_primitive_record (mind0,mind0.mind_packets.(0)) then
        let (sigma, pind) = translate_primitive_record env sigma mind0 mind in
        (sigma, [pind])
-    else 
+    else
       let inds = List.combine (Array.to_list mind0.mind_packets) mind.mind_entry_inds in
       let inds = List.mapi (fun i (ind, ind0) -> (i, ind, ind0)) inds in
       let map sigma (n, ind0, ind) = translate_inductive_body env sigma mind0 mind n ind0 ind in
@@ -717,11 +717,11 @@ let rec term_finish_in_ind_exact sigma t ind_name n = match EConstr.kind sigma t
 
 let param_env_accum_up_to param_env n =
      List.fold_left (fun a acc -> a + acc) 0 (List.firstn n param_env)
-       
+
 let rec otranslate_param env param_env sigma (ind, ind_e) c = match EConstr.kind sigma c with
 | Rel n ->
    let m = param_env_accum_up_to param_env n  in
-   (sigma, mkRel m) 
+   (sigma, mkRel m)
 | Sort _ | Prod _ ->
 
    let (sigma, c_) = otranslate_param env param_env sigma (ind, ind_e) c in
@@ -736,11 +736,11 @@ let rec otranslate_param env param_env sigma (ind, ind_e) c = match EConstr.kind
    let is_ind_param = term_finish_in_ind sigma t ind in
    let (sigma, ctw, param_env) =
      if is_ind_param then (sigma, (None, None), 1 :: param_env)
-     else let (s, cw) = otranslate_param env param_env sigma (ind, ind_e) c in 
+     else let (s, cw) = otranslate_param env param_env sigma (ind, ind_e) c in
           let (s, tw) = otranslate_param_type env param_env s (ind, ind_e) t in
           (s, (Some cw, Some tw), 2 :: param_env)
-   in 
-   let nenv = push_def na (c, c_) (t, t_) env in 
+   in
+   let nenv = push_def na (c, c_) (t, t_) env in
    let ctx = param_top_decls nenv is_ind_param in
    let (sigma, ur) = otranslate_param nenv param_env sigma (ind, ind_e) u in
    let r = it_mkLambda_or_LetIn ur ctx in
@@ -748,7 +748,7 @@ let rec otranslate_param env param_env sigma (ind, ind_e) c = match EConstr.kind
 | App (t, args) ->
    let args = Array.to_list args in
    let (sigma, tw) = otranslate_param env param_env sigma (ind, ind_e) t in
-   let fold t (sigma, accum) = 
+   let fold t (sigma, accum) =
      let (sigma, t_) = otranslate_param env param_env sigma (ind, ind_e) t in
      (sigma, t_ :: accum)
    in
@@ -789,7 +789,7 @@ and otranslate_param_type env param_env sigma (ind, ind_e) c = match EConstr.kin
    let t_ = param_lift param_env t_ in
    let is_ind_param = term_finish_in_ind sigma t ind in
    let nenv = push_assum na (t, t_) env in
-   let (sigma, nenv, param_env) = 
+   let (sigma, nenv, param_env) =
      if not is_ind_param then (sigma, nenv, 1 :: param_env)
      else let (sigma, tp) = otranslate_param_type env param_env sigma (ind, ind_e) t in
           let assum_env = EConstr.push_rel (LocalAssum (na, tp)) nenv.env_tgt in
@@ -819,13 +819,13 @@ let param_constr err env sigma gen (block, block_e, n) mind_d mind_e one_d one_e
     let t = Vars.substnl subst0 (Environ.nb_rel env.env_src) t in
     let param_env = List.init (List.length mind_e.mind_entry_params) (fun i -> 1) in
     let (sigma, te) = otranslate_param_type env param_env sigma (block, block_e) t in
-    
+
     let (sigma, (c_, u)) = Evd.fresh_constructor_instance env.env_tgt sigma ((block_e,n), c) in
     let constr = mkConstructU (c_, EInstance.make u) in
 
     let args = List.init (List.length mind_e.mind_entry_params) (fun i -> mkRel (i + 1)) in
-    let args = List.rev args in 
-    let n_params = List.length mind_e.mind_entry_params in 
+    let args = List.rev args in
+    let n_params = List.length mind_e.mind_entry_params in
     let e = n_params + 1 in
     let constr = if gen then mkApp (constr, [|mkRel e|]) else constr in
     let constr = applist (constr, args) in
@@ -834,7 +834,7 @@ let param_constr err env sigma gen (block, block_e, n) mind_d mind_e one_d one_e
   in
   let ((_, sigma), lc) = List.fold_map map (1,sigma) one_e.mind_entry_lc in
   (sigma, lc)
-    
+
 let param_inductive err env sigma (block, block_e, n as total_ind) mind_d mind_e one_d one_e =
   let typename = translate_param_name one_e.mind_entry_typename in
   let mind_arity_ctxt = List.map EConstr.of_rel_decl one_d.mind_arity_ctxt in
@@ -864,16 +864,16 @@ let param_inductive err env sigma (block, block_e, n as total_ind) mind_d mind_e
   let env = { env with translator } in*)
   let (sigma, lc) = param_constr err env sigma gen total_ind mind_d mind_e one_d one_e in
   let lc = List.map (fun c -> EConstr.to_constr sigma c) lc in
-  
-  let consnames = List.map translate_param_name one_e.mind_entry_consnames in 
+
+  let consnames = List.map translate_param_name one_e.mind_entry_consnames in
   let ind = { one_e with
     mind_entry_typename = typename;
     mind_entry_arity = EConstr.to_constr sigma arity;
     mind_entry_consnames = consnames;
     mind_entry_lc = lc;
   } in
-  (sigma, ind)  
-    
+  (sigma, ind)
+
 let param_mutual_inductive err translator env (block, block_e) mind_d mind_e =
   let sigma = Evd.from_env env in
   let (sigma, env) = make_context err translator env sigma in
@@ -903,8 +903,8 @@ let param_mutual_inductive err translator env (block, block_e) mind_d mind_e =
   } in
   mind
 
-let param_instance_inductive err translator env (name,name_e,name_param) (one_d, n) = 
-  let sigma = Evd.from_env env in 
+let param_instance_inductive err translator env (name,name_e,name_param) (one_d, n) =
+  let sigma = Evd.from_env env in
   let gen = Option.is_empty err in
 
   let arity = Declarations.(one_d.mind_arity_ctxt) in
@@ -922,11 +922,11 @@ let param_instance_inductive err translator env (name,name_e,name_param) (one_d,
 
   let (sigma, cenv) = make_context err translator env sigma in
   let (sigma, decl_e) = make_error err env sigma in
-  
+
   let arity_ctx = List.map EConstr.of_rel_decl one_d.mind_arity_ctxt in
   let (sigma, cenv, _) = otranslate_context cenv sigma arity_ctx in
   let ctx = EConstr.rel_context cenv.env_tgt in
-  let e = List.length ctx in 
+  let e = List.length ctx in
   let param_constr = ((param_mod_e, 0), 1) in
   let sigma,(param_constr, u) = Evd.fresh_constructor_instance env sigma param_constr in
   let param_constr = mkConstructU (param_constr, EInstance.make u) in
@@ -938,7 +938,7 @@ let param_instance_inductive err translator env (name,name_e,name_param) (one_d,
   let ty = applist (ind, args) in
   let (sigma, typeval) = Evd.fresh_global env sigma typeval_e in
   let typeval = EConstr.of_constr typeval in
-  let def_cons = Array.length one_d.mind_user_lc in 
+  let def_cons = Array.length one_d.mind_user_lc in
   let (sigma, (def, u)) = Evd.fresh_constructor_instance env sigma ((name_e,n), def_cons + 1) in
   let def = mkConstructU (def, EInstance.make u) in
   let def_args = if gen then mkRel e :: args else args in
@@ -953,16 +953,16 @@ let param_instance_inductive err translator env (name,name_e,name_param) (one_d,
   let func = mkLambda (Anonymous, ty, mkApp (inner_func, [| mkRel 1 |])) in
 
   let param_raise_ctx = Context.Rel.empty in
-  let sigma, tm_exc_e = Evd.fresh_global env sigma (ConstRef tm_exception_e) in 
+  let sigma, tm_exc_e = Evd.fresh_global env sigma (ConstRef tm_exception_e) in
   let tm_exc_e = EConstr.of_constr tm_exc_e in
   let tm_exc_e_tm = mkApp (tm_exc_e, [|mkRel e|]) in
   let param_raise_ctx = Context.Rel.add (LocalAssum (Anonymous, tm_exc_e_tm)) param_raise_ctx in
   let sigma, raise_ = Evd.fresh_global env sigma (ConstRef tm_raise_e) in
-  let new_ty = Vars.lift 1 ty in 
+  let new_ty = Vars.lift 1 ty in
   let param_raise_tm = mkApp (mkRel (e + 1), [|mkRel (e + 2); new_ty; mkRel 1|]) in
   let param_raise_ctx = Context.Rel.add (LocalAssum (Anonymous, param_raise_tm)) param_raise_ctx in
-  let ss = it_mkLambda_or_LetIn (mkRel 1) param_raise_ctx in 
-  let _ = Feedback.msg_info (Printer.pr_econstr ss) in
+  let ss = it_mkLambda_or_LetIn (mkRel 1) param_raise_ctx in
+  (* Apply inversion which is not quite direct as I thought *)
 
   let body = mkApp (param_constr, [|param_ty; func|]) in
   let param_instance = it_mkLambda_or_LetIn body ctx in
@@ -972,13 +972,13 @@ let param_instance_inductive err translator env (name,name_e,name_param) (one_d,
 
 (*
 let catch_inductive err translator env name mind_d =
-  let sigma = Evd.from_env env in 
+  let sigma = Evd.from_env env in
   let (sigma, env) = make_context err translator env sigma in
   let n = 0 in
 
-  let one_d = mind_d.mind_packets.(n) in 
+  let one_d = mind_d.mind_packets.(n) in
   let nindices = List.length one_d.mind_arity_ctxt - List.length mind_d.mind_params_ctxt in
-  let mind_arity_ctxt = List.map EConstr.of_rel_decl one_d.mind_arity_ctxt in 
+  let mind_arity_ctxt = List.map EConstr.of_rel_decl one_d.mind_arity_ctxt in
   let (param, arity) = List.chop nindices mind_arity_ctxt in
   let param = List.filter (fun decl -> Rel.Declaration.is_local_assum decl) param in
   let sort = Evd.fresh_sort_in_family ~rigid:Evd.UnivRigid env.env_tgt sigma InType in
@@ -991,41 +991,110 @@ let catch_inductive err translator env name mind_d =
   in
   ()
  *)
-  
-let rec induction_generator sigma params_number constr_ty ind n_ind = 
-match EConstr.kind sigma constr_ty with
-| App (t, args) -> 
-   let _, arity = Array.chop params_number args in
-   let arity = Array.map (fun a -> Vars.lift 2 a) arity in
-   mkApp (mkRel 2, Array.append arity [| mkRel 1 |]) 
-| Ind (name, _) ->
-   mkApp (mkRel 2, [| mkRel 1 |])
-| Prod (na, t, b) ->
-   let end_in_ind = term_finish_in_ind_exact sigma t ind n_ind in
-   let rest = induction_generator sigma params_number b ind n_ind in
-   let body = 
-     if end_in_ind then
-       let ty = induction_generator sigma params_number t ind n_ind in
-       let ty = Vars.liftn 1 2 ty in
-       let rest = Vars.liftn 4 4 rest in
-       let subst = [mkApp (mkRel 3, [| mkRel 2|]); mkRel 4; mkRel 2] in
-       let rest = Vars.substnl subst 0 rest in
-       mkProd (Anonymous, ty, rest)
-     else
-       let rest = Vars.liftn 3 4 rest in
-       let subst = [(mkApp (mkRel 2, [| mkRel 1 |])); mkRel 3; mkRel 1] in
-       let rest = Vars.substnl subst 0 rest in 
-       rest
-   in
-   let t = mkProd (na, Vars.lift 2 t, body) in
-   t
-| _ -> constr_ty
+
+module SourceInduction = struct
+
+  let rec induction_generator sigma params_number constr_ty ind n_ind =
+    match EConstr.kind sigma constr_ty with
+    | App (t, args) ->
+       let _, arity = Array.chop params_number args in
+       let arity = Array.map (fun a -> Vars.lift 2 a) arity in
+       mkApp (mkRel 2, Array.append arity [| mkRel 1 |])
+    | Ind (name, _) ->
+       mkApp (mkRel 2, [| mkRel 1 |])
+    | Prod (na, t, b) ->
+       let end_in_ind = term_finish_in_ind_exact sigma t ind n_ind in
+       let rest = induction_generator sigma params_number b ind n_ind in
+       let body =
+         if end_in_ind then
+           let ty = induction_generator sigma params_number t ind n_ind in
+           let ty = Vars.liftn 1 2 ty in
+           let rest = Vars.liftn 4 4 rest in
+           let subst = [mkApp (mkRel 3, [| mkRel 2|]); mkRel 4; mkRel 2] in
+           let rest = Vars.substnl subst 0 rest in
+           mkProd (Anonymous, ty, rest)
+         else
+           let rest = Vars.liftn 3 4 rest in
+           let subst = [(mkApp (mkRel 2, [| mkRel 1 |])); mkRel 3; mkRel 1] in
+           let rest = Vars.substnl subst 0 rest in
+           rest
+       in
+       let t = mkProd (na, Vars.lift 2 t, body) in
+       t
+    | _ -> constr_ty
+
+  let source_induction sigma env name mind_d n  =
+    let one_d = mind_d.mind_packets.(n) in
+
+    let nindices = List.length one_d.mind_arity_ctxt - List.length mind_d.mind_params_ctxt in
+    let nparams = Declarations.(mind_d.mind_nparams) in
+    let mind_arity_ctxt = List.map EConstr.of_rel_decl one_d.mind_arity_ctxt in
+    let (arity_ctx, param_ctx) = List.chop nindices mind_arity_ctxt in
+    let real_param_ctx = List.filter (fun decl -> Rel.Declaration.is_local_assum decl) param_ctx in
+    let (sigma, sort) = Evd.fresh_sort_in_family env.env_tgt sigma InProp in
+
+    let (sigma, (ind, u)) = Evd.fresh_inductive_instance env.env_tgt sigma (name, n) in
+    let ind = mkIndU (ind, EInstance.make u) in
+    let app_args = List.init (List.length one_d.mind_arity_ctxt) (fun i -> mkRel (i + 1)) in
+    let app_ind = applist (ind, List.rev app_args) in
+    let predicate = it_mkProd_or_LetIn (mkProd (Anonymous, app_ind, (mkSort sort))) arity_ctx in
+    let substl_ind = List.init mind_d.mind_ntypes (fun i -> mkInd (name, i)) in
+    let decompose_map cty =
+      let _, non_param_cty = EConstr.decompose_prod_n_assum sigma nparams cty in
+      let non_param_cty = Vars.substnl substl_ind nparams non_param_cty in
+      non_param_cty
+    in
+    let mind_user_lc = Array.to_list one_d.mind_user_lc in
+    let mind_user_lc = List.map  EConstr.of_constr mind_user_lc in
+    let constr_types = List.map decompose_map mind_user_lc in
+    let params_args = List.rev (List.init nparams (fun n -> mkRel (n + 2))) in
+    let map i constr =
+      let constr_ind = induction_generator sigma nparams constr name n in
+      let constr_ind = Vars.liftn 1 3 constr_ind in
+      let ind_constr = mkConstruct ((name, n), (i + 1)) in
+      let constr_constr = Vars.substl [(applist (ind_constr, params_args)); mkRel 1] constr_ind in
+      Vars.lift i constr_constr
+    in
+    let pred_map = List.map_i map 0 constr_types in
+    let predicates_ctx = List.map (fun i -> Rel.Declaration.LocalAssum (Anonymous, i)) pred_map in
+
+    let n_predicates = List.length predicates_ctx in
+    let arity_ctx = Rel.map (fun i -> Vars.lift (n_predicates + 1) i) arity_ctx in
+
+    let param_inds = List.init nparams (fun n -> mkRel (n_predicates + nindices + 1 + n + 1)) in
+    let param_inds = List.rev param_inds in
+    let index_inds = List.rev (List.init nindices (fun n -> mkRel (n + 1))) in
+    let full_args_ind = param_inds @ index_inds in
+    let ind_cons = applist (ind, full_args_ind) in
+
+    let ctxt = Rel.add (Rel.Declaration.LocalAssum
+                          (Name (Id.of_string "P"), predicate)) real_param_ctx
+    in
+    let ctxt = List.fold_left (fun acc d -> Rel.add d acc) ctxt predicates_ctx in
+    let ctxt = List.fold_left (fun acc d -> Rel.add d acc) ctxt (List.rev arity_ctx) in
+    let ctxt = Rel.add (Rel.Declaration.LocalAssum (Anonymous, ind_cons)) ctxt in
+
+    let base_instance_name = translate_instance_name Declarations.(one_d.mind_typename) in
+    let instance_name = Constant.make1 (Lib.make_kn base_instance_name) in
+    let (sigma, (instance_t, u)) = Evd.fresh_constant_instance env.env_src sigma instance_name in
+    let instance_t = mkConstU (instance_t, EInstance.make u) in
+    let instance_t = applist (instance_t, List.map (Vars.lift 1) full_args_ind) in
+    let param_ind = mkApp (mkProj ((Projection.make param_cst false), instance_t), [| mkRel 1 |] ) in
+    let ctxt = Rel.add (Rel.Declaration.LocalAssum (Anonymous, param_ind)) ctxt in
+
+    let predicate = mkRel (nindices + 2 + n_predicates + 1) in
+    let predicate_args = List.init nindices (fun n -> mkRel (n + 3)) in
+    let predicate_args = List.rev (mkRel 2 :: predicate_args) in
+    let induction_pr = it_mkProd_or_LetIn (applist (predicate, predicate_args)) ctxt in
+    induction_pr
+
+end
 
 let dummy_param mind =
   let _,_,l = MutInd.repr3 mind in
   Lib.make_kn  (Nameops.add_suffix (Label.to_id l) "_dummy_param")
 
-let rec induction_predicate_gen sigma params_number constr_ty ind n_ind dummy = 
+let rec induction_predicate_gen sigma params_number constr_ty ind n_ind dummy =
 match EConstr.kind sigma constr_ty with
 | Ind _ ->
     dummy
@@ -1045,7 +1114,7 @@ let rec induction_predicate_generator sigma params_number constr_ty ind n_ind du
 match EConstr.kind sigma constr_ty with
 | (App _ | Ind _) ->
    mkRel 1
-| Prod (na, t, b) -> 
+| Prod (na, t, b) ->
    let end_in_ind = term_finish_in_ind_exact sigma t ind n_ind in
    let bp = induction_predicate_generator sigma params_number b ind n_ind dummy in
    let body =
@@ -1053,7 +1122,7 @@ match EConstr.kind sigma constr_ty with
        let tp = induction_predicate_gen sigma params_number t ind n_ind dummy in
        let tp = Vars.liftn 3 2 tp in
        let tp = Vars.subst1 (mkRel 3) tp in
-       let bp = Vars.liftn 4 4 bp in 
+       let bp = Vars.liftn 4 4 bp in
        let subst = [mkApp (mkRel 3, [|mkRel 1|]); mkRel 4;  mkRel 2] in
        let bp = Vars.substnl subst 0  bp in
        mkLambda (Anonymous, tp, bp)
@@ -1070,89 +1139,23 @@ let recover_param sigma name predicate term =
   let rec map_binder n term =
     match EConstr.kind sigma term with
     | Ind ((m,_), _) when MutInd.equal name m -> mkRel n
-    | App (t, args) when (EConstr.isInd sigma t) && 
+    | App (t, args) when (EConstr.isInd sigma t) &&
                            MutInd.equal name (fst (fst (EConstr.destInd sigma t))) ->
        mkApp (mkRel n, args)
     | _ -> map_with_binders sigma succ map_binder n term
   in
   map_binder predicate term
 
-
-let source_induction sigma env name mind_d n  =
-  let one_d = mind_d.mind_packets.(n) in 
-
-  let nindices = List.length one_d.mind_arity_ctxt - List.length mind_d.mind_params_ctxt in 
-  let nparams = Declarations.(mind_d.mind_nparams) in
-  let mind_arity_ctxt = List.map EConstr.of_rel_decl one_d.mind_arity_ctxt in
-  let (arity_ctx, param_ctx) = List.chop nindices mind_arity_ctxt in 
-  let real_param_ctx = List.filter (fun decl -> Rel.Declaration.is_local_assum decl) param_ctx in 
-  let (sigma, sort) = Evd.fresh_sort_in_family env.env_tgt sigma InProp in 
-  
-  let (sigma, (ind, u)) = Evd.fresh_inductive_instance env.env_tgt sigma (name, n) in
-  let ind = mkIndU (ind, EInstance.make u) in
-  let app_args = List.init (List.length one_d.mind_arity_ctxt) (fun i -> mkRel (i + 1)) in
-  let app_ind = applist (ind, List.rev app_args) in
-  let predicate = it_mkProd_or_LetIn (mkProd (Anonymous, app_ind, (mkSort sort))) arity_ctx in 
-  let substl_ind = List.init mind_d.mind_ntypes (fun i -> mkInd (name, i)) in
-  let decompose_map cty = 
-    let _, non_param_cty = EConstr.decompose_prod_n_assum sigma nparams cty in
-    let non_param_cty = Vars.substnl substl_ind nparams non_param_cty in
-    non_param_cty
-  in
-  let mind_user_lc = Array.to_list one_d.mind_user_lc in
-  let mind_user_lc = List.map  EConstr.of_constr mind_user_lc in
-  let constr_types = List.map decompose_map mind_user_lc in
-  let params_args = List.rev (List.init nparams (fun n -> mkRel (n + 2))) in
-  let map i constr =
-    let constr_ind = induction_generator sigma nparams constr name n in
-    let constr_ind = Vars.liftn 1 3 constr_ind in
-    let ind_constr = mkConstruct ((name, n), (i + 1)) in
-    let constr_constr = Vars.substl [(applist (ind_constr, params_args)); mkRel 1] constr_ind in
-    Vars.lift i constr_constr
-  in
-  let pred_map = List.map_i map 0 constr_types in
-  let predicates_ctx = List.map (fun i -> Rel.Declaration.LocalAssum (Anonymous, i)) pred_map in
-  
-  let n_predicates = List.length predicates_ctx in
-  let arity_ctx = Rel.map (fun i -> Vars.lift (n_predicates + 1) i) arity_ctx in
-  
-  let param_inds = List.init nparams (fun n -> mkRel (n_predicates + nindices + 1 + n + 1)) in
-  let param_inds = List.rev param_inds in
-  let index_inds = List.rev (List.init nindices (fun n -> mkRel (n + 1))) in
-  let full_args_ind = param_inds @ index_inds in
-  let ind_cons = applist (ind, full_args_ind) in
-  
-  let ctxt = Rel.add (Rel.Declaration.LocalAssum 
-                        (Name (Id.of_string "P"), predicate)) real_param_ctx 
-  in
-  let ctxt = List.fold_left (fun acc d -> Rel.add d acc) ctxt predicates_ctx in
-  let ctxt = List.fold_left (fun acc d -> Rel.add d acc) ctxt (List.rev arity_ctx) in
-  let ctxt = Rel.add (Rel.Declaration.LocalAssum (Anonymous, ind_cons)) ctxt in
-  
-  let base_instance_name = translate_instance_name Declarations.(one_d.mind_typename) in
-  let instance_name = Constant.make1 (Lib.make_kn base_instance_name) in
-  let (sigma, (instance_t, u)) = Evd.fresh_constant_instance env.env_src sigma instance_name in
-  let instance_t = mkConstU (instance_t, EInstance.make u) in
-  let instance_t = applist (instance_t, List.map (Vars.lift 1) full_args_ind) in
-  let param_ind = mkApp (mkProj ((Projection.make param_cst false), instance_t), [| mkRel 1 |] ) in
-  let ctxt = Rel.add (Rel.Declaration.LocalAssum (Anonymous, param_ind)) ctxt in
-  
-  let predicate = mkRel (nindices + 2 + n_predicates + 1) in
-  let predicate_args = List.init nindices (fun n -> mkRel (n + 3)) in
-  let predicate_args = List.rev (mkRel 2 :: predicate_args) in
-  let induction_pr = it_mkProd_or_LetIn (applist (predicate, predicate_args)) ctxt in
-  induction_pr
-
 let parametric_induction err translator env name mind_d =
   let sigma = Evd.from_env env in
   let (sigma, env) = make_context err translator env sigma in
-  
+
   let n = 0 in
   let one_d = mind_d.mind_packets.(n) in
   let nparams = Declarations.(mind_d.mind_nparams) in
   let nindices = List.length one_d.mind_arity_ctxt - List.length mind_d.mind_params_ctxt in
-  let induction_pr = source_induction sigma env name mind_d n in
-  
+  let induction_pr = SourceInduction.source_induction sigma env name mind_d n in
+
   let sigma,induction_pr_tr = otranslate_type env sigma induction_pr in
   let induction_pr_tr_ctx, _ = EConstr.decompose_prod_assum sigma induction_pr_tr in
 
@@ -1162,37 +1165,37 @@ let parametric_induction err translator env name mind_d =
 
   let mind_d_param,_ = Inductive.lookup_mind_specif env.env_src (name_param, 0) in
   let one_d_param = mind_d_param.mind_packets.(n) in
-  let mind_param = List.init mind_d.mind_ntypes (fun n -> n) in 
+  let mind_param = List.init mind_d.mind_ntypes (fun n -> n) in
   let fold_map sigma n =
     let (sigma, (ind, u)) = Evd.fresh_inductive_instance env.env_src sigma (name_param, n) in
     (sigma, mkIndU (ind, EInstance.make u))
   in
   let sigma, ind_subst = List.fold_map fold_map sigma mind_param in
-  
+
   let ind_param_induction = Nameops.add_suffix one_d.mind_typename "_param_ind" in
-  let sigma, (ind_param_induction, u) = 
+  let sigma, (ind_param_induction, u) =
     let cst = (Constant.make1 (Lib.make_kn ind_param_induction)) in
     Evd.fresh_constant_instance env.env_src sigma cst
   in
   let cst = mkConstU (ind_param_induction, EInstance.make u) in
   let n_preds = Array.length one_d.mind_user_lc in
   let params_offset = nindices + n_preds + 3 in
-  
+
   let map m constr_ty =
     let constr_ty = EConstr.of_constr constr_ty in
-    let constr_ty = Vars.substnl ind_subst 0 constr_ty in 
-    let _,constr_ty = EConstr.decompose_prod_n_assum sigma (nparams + 1) constr_ty in 
+    let constr_ty = Vars.substnl ind_subst 0 constr_ty in
+    let _,constr_ty = EConstr.decompose_prod_n_assum sigma (nparams + 1) constr_ty in
     let ind_pred_gen = induction_predicate_generator in
     let dummy_param_name = MutInd.make1 (dummy_param name) in
     let dummy_term  = mkInd (dummy_param_name, 0) in
     let generator_predicates = ind_pred_gen sigma (nparams + 1) constr_ty name_param m dummy_term in
     let generator_predicates = recover_param sigma dummy_param_name 2 generator_predicates in
-    let lift = n_preds + nindices + 2 in 
+    let lift = n_preds + nindices + 2 in
     let generator_predicates = Vars.liftn lift 2 generator_predicates in
     Vars.subst1 (mkRel (2 + nindices + n_preds - m)) generator_predicates
   in
   let pred_trans = Array.mapi map one_d_param.mind_user_lc in
-  
+
   let cst_predicate =
     let param_arity_ctx,_ = List.chop (nindices + 1) Declarations.(one_d_param.mind_arity_ctxt) in
     let param_arity_ctx = List.map EConstr.of_rel_decl param_arity_ctx in
@@ -1220,3 +1223,141 @@ let parametric_induction err translator env name mind_d =
   let trans_pred = mkLambda_or_LetIn e trans_pred in
   let sigma,_ = Typing.type_of env.env_src sigma trans_pred in
   (sigma, induction_pr, trans_pred, mkProd_or_LetIn e induction_pr_tr)
+
+
+module InductionCatch = struct
+
+  (* Similar (same) to SourceInduction.induction_generator. This function works on a single
+   * constructor and defines the predicate structure. This method should only be applied
+   * if `constr_ty` is strictly positive  respect to `ind` and instead of an actual
+   * constructor type, it has already replaced the Rel to inductives with Ind*)
+  let rec inductive_predicate_structure_gen sigma params_number constr_ty ind n_ind =
+    match EConstr.kind sigma constr_ty with
+    | App (t, args) ->
+       let _, arity = Array.chop params_number args in
+       let arity = Array.map (fun a -> Vars.lift 2 a) arity in
+       mkApp (mkRel 2, Array.append arity [| mkRel 1 |])
+    | Ind ((ind_name, ind_constructor), _)
+           when (Names.MutInd.equal ind ind_name) && (ind_constructor == n_ind) ->
+       mkApp (mkRel 2, [| mkRel 1 |])
+    | Prod (na, t, b) ->
+       let end_in_ind = term_finish_in_ind_exact sigma t ind n_ind in
+       let rest = inductive_predicate_structure_gen sigma params_number b ind n_ind in
+       let body =
+         if end_in_ind then
+           let ty = inductive_predicate_structure_gen sigma params_number t ind n_ind in
+           let ty = Vars.liftn 1 2 ty in
+           let rest = Vars.liftn 4 4 rest in
+           let subst = [mkApp (mkRel 3, [| mkRel 2|]); mkRel 4; mkRel 2] in
+           let rest = Vars.substnl subst 0 rest in
+           mkProd (Anonymous, ty, rest)
+         else
+           let rest = Vars.liftn 3 4 rest in
+           let subst = [(mkApp (mkRel 2, [| mkRel 1 |])); mkRel 3; mkRel 1] in
+           let rest = Vars.substnl subst 0 rest in
+           rest
+       in
+       let t = mkProd (na, Vars.lift 2 t, body) in
+       t
+    | _ -> constr_ty
+
+  let constr_rel_replaced_by_ind sigma name n_ind_types nparams one_d =
+    let substl_ind = List.init n_ind_types (fun i -> mkInd (name, i)) in
+    let decompose_map cty =
+      let _, non_param_cty = EConstr.decompose_prod_n_assum sigma nparams cty in
+      let non_param_cty = Vars.substnl substl_ind nparams non_param_cty in
+      non_param_cty
+    in
+    let mind_user_lc = Array.to_list one_d.mind_user_lc in
+    let mind_user_lc = List.map  EConstr.of_constr mind_user_lc in
+    List.map decompose_map mind_user_lc
+
+  (* Assumes a context for rels Predicate :: Param_n :: ... :: Param_1 *)
+  let case_for_exceptional_constructor sigma env (mind_name, mind_n) nparams one_d_arity =
+    let sigma, inst_raise = fresh_global env sigma (ConstRef tm_raise) in
+    let sigma, (ind_, u) = Evd.fresh_inductive_instance env.env_tgt sigma (mind_name, mind_n) in
+    let inst_ind_ = mkIndU (ind_, EInstance.make u) in
+    let arity_length = Context.Rel.length one_d_arity in
+    let param_rel = List.init nparams (fun n -> mkRel (n + arity_length + 3)) in
+    let arity_rel = List.init arity_length (fun n -> mkRel (n + 2)) in
+    let app_ind_ = applist (inst_ind_, (List.rev param_rel) @ (List.rev arity_rel)) in
+    let app_raise = mkApp (inst_raise, [| app_ind_; mkRel 1 |]) in
+    let predicate_raise = mkApp (mkRel (arity_length + 2), [| app_raise |]) in
+    let sigma, inst_exc_ty = fresh_global env sigma (ConstRef tm_exception) in
+    let exc_raise_fun = mkProd (Name.mk_name (Id.of_string "e"), inst_exc_ty, predicate_raise) in
+    let exc_case = it_mkProd_or_LetIn exc_raise_fun one_d_arity in
+    sigma, exc_case
+
+  let source_induction sigma env name (mind_d, mind_n) =
+    let one_d = mind_d.mind_packets.(mind_n) in
+    let nindices = List.length one_d.mind_arity_ctxt - List.length mind_d.mind_params_ctxt in
+    let nparams = Declarations.(mind_d.mind_nparams) in
+    let n_ind_types = mind_d.mind_ntypes in
+
+    let constr_types = constr_rel_replaced_by_ind sigma name n_ind_types nparams one_d in
+
+    let mind_arity_ctxt = List.map EConstr.of_rel_decl one_d.mind_arity_ctxt in
+    let (arity_ctx, param_ctx) = List.chop nindices mind_arity_ctxt in
+    let real_param_ctx = List.filter (fun decl -> Rel.Declaration.is_local_assum decl) param_ctx in
+    let (sigma, sort) = Evd.fresh_sort_in_family env.env_tgt sigma InProp in
+
+    let (sigma, (ind, u)) = Evd.fresh_inductive_instance env.env_tgt sigma (name, mind_n) in
+    let ind = mkIndU (ind, EInstance.make u) in
+    let app_args = List.init (List.length one_d.mind_arity_ctxt) (fun i -> mkRel (i + 1)) in
+    let app_ind = applist (ind, List.rev app_args) in
+    let predicate = it_mkProd_or_LetIn (mkProd (Anonymous, app_ind, (mkSort sort))) arity_ctx in
+
+    let params_args = List.rev (List.init nparams (fun n -> mkRel (n + 2))) in
+    let map i constr =
+      let constr_ind = inductive_predicate_structure_gen sigma nparams constr name mind_n in
+      let constr_ind = Vars.liftn 1 3 constr_ind in
+      let ind_constr = mkConstruct ((name, mind_n), (i + 1)) in
+      let constr_constr = Vars.substl [(applist (ind_constr, params_args)); mkRel 1] constr_ind in
+      Vars.lift i constr_constr
+    in
+    let pred_map = List.map_i map 0 constr_types in
+    let predicates_ctx = List.map (fun i -> Rel.Declaration.LocalAssum (Anonymous, i)) pred_map in
+
+    let n_predicates = List.length predicates_ctx in
+    let lift_arity_ctx = Rel.map (fun i -> Vars.lift (n_predicates + 1) i) arity_ctx in
+
+    let param_inds = List.init nparams (fun n -> mkRel (n_predicates + nindices + 1 + n + 1)) in
+    let param_inds = List.rev param_inds in
+    let index_inds = List.rev (List.init nindices (fun n -> mkRel (n + 1))) in
+    let full_args_ind = param_inds @ index_inds in
+    let ind_cons = applist (ind, full_args_ind) in
+
+    let ctxt = Rel.add (Rel.Declaration.LocalAssum
+                          (Name (Id.of_string "P"), predicate)) real_param_ctx
+    in
+    let ctxt = List.fold_left (fun acc d -> Rel.add d acc) ctxt predicates_ctx in
+    let sigma, exc_case =
+      case_for_exceptional_constructor sigma env (name, mind_n) nparams arity_ctx
+    in
+    let lifted_exc_case = Vars.lift (Array.length one_d.mind_user_lc) exc_case in
+    let ctxt_w_exc_case = Rel.add (Rel.Declaration.LocalAssum (Anonymous, lifted_exc_case)) ctxt in
+    let ctxt_w_arity =
+      List.fold_left (fun acc d -> Rel.add d acc) ctxt_w_exc_case (List.rev lift_arity_ctx)
+    in
+    let ctxt_w_ind = Rel.add (Rel.Declaration.LocalAssum (Anonymous, ind_cons)) ctxt_w_arity in
+
+    let predicate = mkRel (nindices + 2 + n_predicates) in
+    let predicate_args = List.init nindices (fun n -> mkRel (n + 2)) in
+    let predicate_args_w_instance = List.rev (mkRel 1 :: predicate_args) in
+    let induction_pr =
+      it_mkProd_or_LetIn (applist (predicate, predicate_args_w_instance)) ctxt_w_ind
+    in
+    let _ = Feedback.msg_info (Printer.pr_econstr induction_pr) in
+    induction_pr
+
+  let catch err translator env name (mind_d, mind_n) =
+    let sigma = Evd.from_env env in
+    let (sigma, env) = make_context err translator env sigma in
+
+    let ond_d = mind_d.mind_packets.(mind_n) in
+    let _ = source_induction sigma env name (mind_d, mind_n) in
+    ()
+
+end
+
+let catch_induction = InductionCatch.catch

@@ -316,6 +316,7 @@ let instantiate_parametric_modality err translator (name, n) ext =
   in
   let env = Global.env () in
   let (sigma, ind, ind_e, ind_e_ty) = ETranslate.parametric_induction err translator env name mind in
+  let _ = ETranslate.catch_induction err translator env name (mind, 0) in
 
   
   (* Parametrict induction *)
