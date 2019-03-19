@@ -314,12 +314,10 @@ let instantiate_parametric_modality err translator (name, n) ext =
   let ((_, translator), instances) = 
     List.fold_map fold_map (0, translator) (Array.to_list D.(mind.mind_packets)) 
   in
-  let env = Global.env () in
-  let (sigma, ind, ind_e, ind_e_ty) = ETranslate.parametric_induction err translator env name mind in
-  let _ = ETranslate.catch_induction err translator env name (mind, 0) in
-
   
   (* Parametrict induction *)
+  let env = Global.env () in
+  let (sigma, ind, ind_e, ind_e_ty) = ETranslate.parametric_induction err translator env name mind in
   let name = Declarations.(mind.mind_packets.(0).mind_typename) in
   let induction_name = Nameops.add_suffix name "_ind_param" in
   let uctx = UState.context_set (Evd.evar_universe_context sigma) in

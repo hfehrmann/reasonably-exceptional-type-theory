@@ -1212,7 +1212,7 @@ let parametric_induction err translator env name mind_d =
     it_mkLambda_or_LetIn body_predicate predicate_ctx
   in
   let cst_predicate = Vars.lift (params_offset - 1) cst_predicate in
-  let cst_params = Array.init (nparams + 1) (fun n -> mkRel (n + 1 + params_offset)) in
+ l let cst_params = Array.init (nparams + 1) (fun n -> mkRel (n + 1 + params_offset)) in
   let cst_arity = Array.init (nindices + 2) (fun n -> mkRel (n + 1)) in
   let () = Array.rev cst_params in
   let () = Array.rev cst_arity in
@@ -1347,15 +1347,15 @@ module InductionCatch = struct
     let induction_pr =
       it_mkProd_or_LetIn (applist (predicate, predicate_args_w_instance)) ctxt_w_ind
     in
-    let _ = Feedback.msg_info (Printer.pr_econstr induction_pr) in
-    induction_pr
+    sigma, induction_pr
 
   let catch err translator env name (mind_d, mind_n) =
     let sigma = Evd.from_env env in
     let (sigma, env) = make_context err translator env sigma in
 
-    let ond_d = mind_d.mind_packets.(mind_n) in
-    let _ = source_induction sigma env name (mind_d, mind_n) in
+    let one_d = mind_d.mind_packets.(mind_n) in
+    let sigma, induction_pr = source_induction sigma env name (mind_d, mind_n) in
+    let sigma, induction_pr_tr = otranslate_type env sigma induction_pr in
     ()
 
 end

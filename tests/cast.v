@@ -1,5 +1,29 @@
 Require Import Weakly.Effects.
 
+Effect List Translate nat bool.
+Effect Translate False.
+
+
+Inductive vec (A: Type) (a: A): nat -> bool -> Type :=
+| vnil: vec A a 0 false
+| vcons: forall n, vec A a n true -> vec A a (S n) false . Print vec_rect.
+
+Inductive rvec (A: Type): nat -> Type :=
+| vnil: rvec A 0
+| vcons: forall n, rvec A n -> rvec A (S n).
+
+Effect Translate vec. Print vec_ind_paramᵉ.
+
+
+Effect Definition gg: forall (E: Type) (A: Type) (P: forall n, vec A n
+
+Check vec_ind_param. Check vec_param_ind.
+
+
+Effect Definition j: forall e,  param (raise nat e) -> False.
+intros. inversion H. Show Proof.
+
+
 Inductive sum (A B : Prop) : Type :=  inl : A -> sum A B | inr : B -> sum A B.
 
 Notation "A + B" := (sum A B) : type_scope.
@@ -187,12 +211,3 @@ Definition bigger_nat (e: Exception) :=
   existT (fun n => n > 2) 1 (raise _ e).
 Effect List Translate sigT le lt gt.
 
-
-
-Inductive vec (A: Type): nat -> Type :=
-| vnil: vec A 0
-| vcons: forall n, vec A n -> vec A (S n).
-
-Effect Translate vec.
-Unset Printing Notations.
-Print vec_instanceᵉ.
