@@ -318,8 +318,8 @@ let instantiate_parametric_modality err translator (name, n) ext =
   (* Parametrict induction *)
   let env = Global.env () in
   let (sigma, ind, ind_e, ind_e_ty) = ETranslate.parametric_induction err translator env name mind in
-  let name = Declarations.(mind.mind_packets.(0).mind_typename) in
-  let induction_name = Nameops.add_suffix name "_ind_param" in
+  let ind_name = Declarations.(mind.mind_packets.(0).mind_typename) in
+  let induction_name = Nameops.add_suffix ind_name "_ind_param" in
   let uctx = UState.context_set (Evd.evar_universe_context sigma) in
   let cst_ind = declare_axiom induction_name uctx (EConstr.to_constr sigma ind) in
 
@@ -328,6 +328,15 @@ let instantiate_parametric_modality err translator (name, n) ext =
   let ind_e = EConstr.to_constr sigma ind_e in
   let ind_e_ty = EConstr.to_constr sigma ind_e_ty in
   let cst_ind_e = declare_constant induction_name_e uctx ind_e ind_e_ty in
+  (* ********************* *)
+
+  (* Catch Induction *)
+  let env = Global.env () in
+  let sigma, catch_induction = ETranslate.catch_induction err translator env name (mind, 0) in
+  (*let name = Declarations.(mind.mind_packets.(0).mind_typename) in
+  let induction_name = Nameops.add_prefix "catch_" name in
+  let uctx = UState.context_set (Evd.evar_universe_context sigma) in
+  let cst_ind = declare_axiom induction_name uctx (EConstr.to_constr sigma catch_induction) in*)
   (* ********************* *)
 
   ExtConstant (cst_ind, ConstRef cst_ind_e) :: instances  

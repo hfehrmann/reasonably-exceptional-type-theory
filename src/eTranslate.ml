@@ -1212,7 +1212,7 @@ let parametric_induction err translator env name mind_d =
     it_mkLambda_or_LetIn body_predicate predicate_ctx
   in
   let cst_predicate = Vars.lift (params_offset - 1) cst_predicate in
- l let cst_params = Array.init (nparams + 1) (fun n -> mkRel (n + 1 + params_offset)) in
+  let cst_params = Array.init (nparams + 1) (fun n -> mkRel (n + 1 + params_offset)) in
   let cst_arity = Array.init (nindices + 2) (fun n -> mkRel (n + 1)) in
   let () = Array.rev cst_params in
   let () = Array.rev cst_arity in
@@ -1278,11 +1278,16 @@ module InductionCatch = struct
     let sigma, (ind_, u) = Evd.fresh_inductive_instance env.env_tgt sigma (mind_name, mind_n) in
     let inst_ind_ = mkIndU (ind_, EInstance.make u) in
     let arity_length = Context.Rel.length one_d_arity in
-    let param_rel = List.init nparams (fun n -> mkRel (n + arity_length + 3)) in
+    let param_rel = List.init nparams (fun n -> mkRel (n + arity_length + 2)) in
     let arity_rel = List.init arity_length (fun n -> mkRel (n + 2)) in
     let app_ind_ = applist (inst_ind_, (List.rev param_rel) @ (List.rev arity_rel)) in
     let app_raise = mkApp (inst_raise, [| app_ind_; mkRel 1 |]) in
-    let predicate_raise = mkApp (mkRel (arity_length + 2), [| app_raise |]) in
+    let predicate_index_args = 
+      List.init (Context.Rel.length one_d_arity) (fun n -> mkRel (n + 2)) 
+    in
+    let predicate_index_args = List.rev predicate_index_args in
+    let predicate_index_args = predicate_index_args @ [ app_raise ] in
+    let predicate_raise = applist (mkRel (arity_length + 2), predicate_index_args) in
     let sigma, inst_exc_ty = fresh_global env sigma (ConstRef tm_exception) in
     let exc_raise_fun = mkProd (Name.mk_name (Id.of_string "e"), inst_exc_ty, predicate_raise) in
     let exc_case = it_mkProd_or_LetIn exc_raise_fun one_d_arity in
@@ -1321,7 +1326,7 @@ module InductionCatch = struct
     let n_predicates = List.length predicates_ctx in
     let lift_arity_ctx = Rel.map (fun i -> Vars.lift (n_predicates + 1) i) arity_ctx in
 
-    let param_inds = List.init nparams (fun n -> mkRel (n_predicates + nindices + 1 + n + 1)) in
+    let param_inds = List.init nparams (fun n -> mkRel (n_predicates + nindices + n + 3)) in
     let param_inds = List.rev param_inds in
     let index_inds = List.rev (List.init nindices (fun n -> mkRel (n + 1))) in
     let full_args_ind = param_inds @ index_inds in
@@ -1341,7 +1346,7 @@ module InductionCatch = struct
     in
     let ctxt_w_ind = Rel.add (Rel.Declaration.LocalAssum (Anonymous, ind_cons)) ctxt_w_arity in
 
-    let predicate = mkRel (nindices + 2 + n_predicates) in
+    let predicate = mkRel (nindices + 3 + n_predicates) in
     let predicate_args = List.init nindices (fun n -> mkRel (n + 2)) in
     let predicate_args_w_instance = List.rev (mkRel 1 :: predicate_args) in
     let induction_pr =
@@ -1355,8 +1360,10 @@ module InductionCatch = struct
 
     let one_d = mind_d.mind_packets.(mind_n) in
     let sigma, induction_pr = source_induction sigma env name (mind_d, mind_n) in
-    let sigma, induction_pr_tr = otranslate_type env sigma induction_pr in
-    ()
+    let _ = Feedback.msg_info (Printer.pr_econstr induction_pr) in
+    (*let sigma, induction_pr_tr = otranslate_type env sigma induction_pr in
+    let sigma, _ = Typing.type_of env.env_src sigma induction_pr in*)
+    (sigma, induction_pr)
 
 end
 

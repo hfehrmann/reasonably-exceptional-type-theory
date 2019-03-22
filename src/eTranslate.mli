@@ -60,4 +60,4 @@ val parametric_induction :
 
 val catch_induction :
   effect -> translator -> Environ.env -> MutInd.t ->
-    Declarations.mutual_inductive_body * int -> unit
+    Declarations.mutual_inductive_body * int -> Evd.evar_map * EConstr.t
