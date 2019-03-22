@@ -1278,7 +1278,7 @@ module InductionCatch = struct
     let sigma, (ind_, u) = Evd.fresh_inductive_instance env.env_tgt sigma (mind_name, mind_n) in
     let inst_ind_ = mkIndU (ind_, EInstance.make u) in
     let arity_length = Context.Rel.length one_d_arity in
-    let param_rel = List.init nparams (fun n -> mkRel (n + arity_length + 2)) in
+    let param_rel = List.init nparams (fun n -> mkRel (n + arity_length + 3)) in
     let arity_rel = List.init arity_length (fun n -> mkRel (n + 2)) in
     let app_ind_ = applist (inst_ind_, (List.rev param_rel) @ (List.rev arity_rel)) in
     let app_raise = mkApp (inst_raise, [| app_ind_; mkRel 1 |]) in
@@ -1361,8 +1361,8 @@ module InductionCatch = struct
     let one_d = mind_d.mind_packets.(mind_n) in
     let sigma, induction_pr = source_induction sigma env name (mind_d, mind_n) in
     let _ = Feedback.msg_info (Printer.pr_econstr induction_pr) in
-    (*let sigma, induction_pr_tr = otranslate_type env sigma induction_pr in
-    let sigma, _ = Typing.type_of env.env_src sigma induction_pr in*)
+    (*let sigma, induction_pr_tr = otranslate_type env sigma induction_pr in*)
+    let sigma, _ = Typing.type_of env.env_src sigma induction_pr in
     (sigma, induction_pr)
 
 end

@@ -333,10 +333,10 @@ let instantiate_parametric_modality err translator (name, n) ext =
   (* Catch Induction *)
   let env = Global.env () in
   let sigma, catch_induction = ETranslate.catch_induction err translator env name (mind, 0) in
-  (*let name = Declarations.(mind.mind_packets.(0).mind_typename) in
+  let name = Declarations.(mind.mind_packets.(0).mind_typename) in
   let induction_name = Nameops.add_prefix "catch_" name in
   let uctx = UState.context_set (Evd.evar_universe_context sigma) in
-  let cst_ind = declare_axiom induction_name uctx (EConstr.to_constr sigma catch_induction) in*)
+  let cst_ind = declare_axiom induction_name uctx (EConstr.to_constr sigma catch_induction) in
   (* ********************* *)
 
   ExtConstant (cst_ind, ConstRef cst_ind_e) :: instances  
