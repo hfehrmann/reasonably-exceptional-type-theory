@@ -333,10 +333,18 @@ let instantiate_parametric_modality err translator (name, n) ext =
   (* Catch Induction *)
   let env = Global.env () in
   let sigma, catch_induction = ETranslate.catch_induction err translator env name (mind, 0) in
-  let name = Declarations.(mind.mind_packets.(0).mind_typename) in
-  let induction_name = Nameops.add_prefix "catch_" name in
+  let one_ind = Declarations.(mind.mind_packets.(0)) in
+  let name = Declarations.(one_ind.mind_typename) in
+  let catch_name = Nameops.add_prefix "catch_" name in
+  let _ = Feedback.msg_info (Names.Id.print catch_name) in
   let uctx = UState.context_set (Evd.evar_universe_context sigma) in
-  let cst_ind = declare_axiom induction_name uctx (EConstr.to_constr sigma catch_induction) in
+  let cst_ind = declare_axiom catch_name uctx (EConstr.to_constr sigma catch_induction) in
+  
+  let id_ind = EUtil.translate_name catch_name in
+  let name_e = EUtil.translate_inductive_name name in
+  let reference = CAst.make @@ Misctypes.AN (CAst.make (Libnames.Ident name_e)) in
+  let scheme = Vernacexpr.InductionScheme (true, reference, InType) in
+  let _ = Indschemes.do_scheme [Some (CAst.make id_ind), scheme] in
   (* ********************* *)
 
   ExtConstant (cst_ind, ConstRef cst_ind_e) :: instances  

@@ -52,26 +52,6 @@ let push_def na (c, ce) (t, te) env = { env with
   env_tgt = EConstr.push_rel (LocalDef (na, ce, te)) env.env_tgt;
 }
 
-let translate_name id =
-  let id = Id.to_string id in
-  Id.of_string (id ^ "ᵉ")
-
-let translate_internal_name id =
-  let id = Id.to_string id in
-  Id.of_string (id ^ "ᵒ")
-
-let translate_failure id =
-  let id = Id.to_string id in
-  Id.of_string (id ^ "ᴱ")
-
-let translate_param_name id =
-  let id = Id.to_string id in
-  Id.of_string (id ^ "_param")
-
-let translate_instance_name id =
-  let id = Id.to_string id in
-  Id.of_string (id ^ "_instance")
-
 let lift_rel_context n ctx =
   let fold k d accu =
     let d = Context.Rel.Declaration.map_constr (fun c -> Vars.liftn n k c) d in
@@ -559,7 +539,7 @@ let extend_inductive env mind0 mind =
   (** Dummy inductive. It is only used for its universe context, that we set to
       be empty. *)
   let mbi = { mind0 with mind_universes = univs } in
-  let ind_name = dummy_kn (translate_internal_name mind0.mind_packets.(0).mind_typename) in
+  let ind_name = dummy_kn (EUtil.translate_inductive_name mind0.mind_packets.(0).mind_typename) in
   let mind = MutInd.make1 ind_name in
   let env_tgt = Environ.add_mind mind mbi env.env_tgt in
   let ext = match env.error with
@@ -598,12 +578,12 @@ let translate_constructors env sigma mind0 mind ind0 ind =
   List.fold_map map sigma ind.mind_entry_lc
 
 let translate_inductive_body env sigma mind0 mind n ind0 ind =
-  let typename = translate_internal_name ind.mind_entry_typename in
+  let typename = EUtil.translate_inductive_name ind.mind_entry_typename in
   let is_prop = match ind0.mind_arity with
     | RegularArity ar -> is_prop_sort ar.mind_sort
     | TemplateArity _ -> false
   in
-  let constructors = List.map translate_name ind.mind_entry_consnames in
+  let constructors = List.map EUtil.translate_name ind.mind_entry_consnames in
   let nindices = List.length ind0.mind_arity_ctxt - List.length mind0.mind_params_ctxt in
   let arity_ctx, _ = List.chop nindices ind0.mind_arity_ctxt in
   let (sigma, arity_env, arity_ctx') = otranslate_context env sigma (List.map EConstr.of_rel_decl arity_ctx) in
@@ -613,7 +593,7 @@ let translate_inductive_body env sigma mind0 mind n ind0 ind =
   let (sigma, _) = Typing.type_of env.env_tgt sigma arity in
   let (sigma, lc) = translate_constructors env sigma mind0 mind ind0 ind in
   let lc = List.map (fun c -> EConstr.to_constr sigma c) lc in
-  let fail_name = translate_failure ind.mind_entry_typename in
+  let fail_name = EUtil.translate_failure ind.mind_entry_typename in
   let fail_arg (n, accu) = function
   | LocalAssum _ -> (succ n, mkRel n :: accu)
   | LocalDef _ -> (succ n, accu)
@@ -643,13 +623,13 @@ let translate_primitive_record env sigma mind_d mind_e =
   let _, env = extend_inductive env mind_d mind_e in
   let ind_e = List.hd mind_e.mind_entry_inds in
   let ind_d = mind_d.mind_packets.(0) in
-  let ind_name = translate_internal_name ind_e.mind_entry_typename in
+  let ind_name = EUtil.translate_inductive_name ind_e.mind_entry_typename in
   let (sigma, sort) = Evd.fresh_sort_in_family ~rigid:Evd.UnivRigid env.env_tgt sigma InType in
   let ar = mkSort sort in
-  let cons_name = translate_name (List.hd ind_e.mind_entry_consnames) in
+  let cons_name = EUtil.translate_name (List.hd ind_e.mind_entry_consnames) in
   let (sigma, constr_type) = translate_constructors env sigma mind_d mind_e ind_d ind_e in
   let constr_type = List.hd constr_type in
-  let constr_type_name = name_projection_translate sigma translate_name constr_type in
+  let constr_type_name = name_projection_translate sigma EUtil.translate_name constr_type in
 
   let ind = { ind_e with
               mind_entry_typename = ind_name;
@@ -836,7 +816,7 @@ let param_constr err env sigma gen (block, block_e, n) mind_d mind_e one_d one_e
   (sigma, lc)
 
 let param_inductive err env sigma (block, block_e, n as total_ind) mind_d mind_e one_d one_e =
-  let typename = translate_param_name one_e.mind_entry_typename in
+  let typename = EUtil.translate_param_name one_e.mind_entry_typename in
   let mind_arity_ctxt = List.map EConstr.of_rel_decl one_d.mind_arity_ctxt in
   let nindices = List.length one_d.mind_arity_ctxt - List.length mind_d.mind_params_ctxt in
   let index_ctxt, _ =  List.chop nindices mind_arity_ctxt in
@@ -865,7 +845,7 @@ let param_inductive err env sigma (block, block_e, n as total_ind) mind_d mind_e
   let (sigma, lc) = param_constr err env sigma gen total_ind mind_d mind_e one_d one_e in
   let lc = List.map (fun c -> EConstr.to_constr sigma c) lc in
 
-  let consnames = List.map translate_param_name one_e.mind_entry_consnames in
+  let consnames = List.map EUtil.translate_param_name one_e.mind_entry_consnames in
   let ind = { one_e with
     mind_entry_typename = typename;
     mind_entry_arity = EConstr.to_constr sigma arity;
@@ -1074,7 +1054,7 @@ module SourceInduction = struct
     let ctxt = List.fold_left (fun acc d -> Rel.add d acc) ctxt (List.rev arity_ctx) in
     let ctxt = Rel.add (Rel.Declaration.LocalAssum (Anonymous, ind_cons)) ctxt in
 
-    let base_instance_name = translate_instance_name Declarations.(one_d.mind_typename) in
+    let base_instance_name = EUtil.translate_instance_name Declarations.(one_d.mind_typename) in
     let instance_name = Constant.make1 (Lib.make_kn base_instance_name) in
     let (sigma, (instance_t, u)) = Evd.fresh_constant_instance env.env_src sigma instance_name in
     let instance_t = mkConstU (instance_t, EInstance.make u) in

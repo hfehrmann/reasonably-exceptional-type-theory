@@ -244,4 +244,22 @@ let primitive_record mind =
   | Some (Some _) -> true
   | _ -> false
 
+let translate_name id =
+  let id = Id.to_string id in
+  Id.of_string (id ^ "ᵉ")
 
+let translate_inductive_name id =
+  let id = Id.to_string id in
+  Id.of_string (id ^ "ᵒ")
+
+let translate_failure id =
+  let id = Id.to_string id in
+  Id.of_string (id ^ "ᴱ")
+
+let translate_param_name id =
+  let id = Id.to_string id in
+  Id.of_string (id ^ "_param")
+
+let translate_instance_name id =
+  let id = Id.to_string id in
+  Id.of_string (id ^ "_instance")
