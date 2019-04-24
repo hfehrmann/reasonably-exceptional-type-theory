@@ -310,6 +310,11 @@ let rec otranslate env sigma c = match EConstr.kind sigma c with
   (sigma, r)
 | Fix (fi, recdef) ->
   let (sigma, recdefe) = otranslate_recdef env sigma recdef in
+  let _, typ_fi, bd_fi = recdef in
+  let _ = Feedback.msg_info (Printer.pr_econstr (typ_fi.(snd fi))) in
+  let _ = Feedback.msg_info (Printer.pr_econstr (bd_fi.(snd fi))) in
+  let _ = Feedback.msg_info (Pp.prlist Pp.int (ArrayLabels.to_list (fst fi))) in
+  let _ = Feedback.msg_info (Pp.int (snd fi)) in
   let r = mkFix (fi, recdefe) in
   (sigma, r)
 | CoFix (fi, recdef) ->
@@ -1262,8 +1267,8 @@ module InductionCatch = struct
     let arity_rel = List.init arity_length (fun n -> mkRel (n + 2)) in
     let app_ind_ = applist (inst_ind_, (List.rev param_rel) @ (List.rev arity_rel)) in
     let app_raise = mkApp (inst_raise, [| app_ind_; mkRel 1 |]) in
-    let predicate_index_args = 
-      List.init (Context.Rel.length one_d_arity) (fun n -> mkRel (n + 2)) 
+    let predicate_index_args =
+      List.init (Context.Rel.length one_d_arity) (fun n -> mkRel (n + 2))
     in
     let predicate_index_args = List.rev predicate_index_args in
     let predicate_index_args = predicate_index_args @ [ app_raise ] in
@@ -1284,7 +1289,7 @@ module InductionCatch = struct
     let mind_arity_ctxt = List.map EConstr.of_rel_decl one_d.mind_arity_ctxt in
     let (arity_ctx, param_ctx) = List.chop nindices mind_arity_ctxt in
     let real_param_ctx = List.filter (fun decl -> Rel.Declaration.is_local_assum decl) param_ctx in
-    let (sigma, sort) = Evd.fresh_sort_in_family env.env_tgt sigma InProp in
+    let (sigma, sort) = Evd.fresh_sort_in_family env.env_tgt sigma InType in
 
     let (sigma, (ind, u)) = Evd.fresh_inductive_instance env.env_tgt sigma (name, mind_n) in
     let ind = mkIndU (ind, EInstance.make u) in
@@ -1334,15 +1339,103 @@ module InductionCatch = struct
     in
     sigma, induction_pr
 
+  let rec is_predicate_e sigma pred_index ty =
+    match EConstr.kind sigma ty with
+    | App (app, args) ->
+       if Array.length args >= 2 then
+         let poss_app = args.(1) in
+         if EConstr.isApp sigma poss_app then
+           let poss_pred, _ = EConstr.destApp sigma poss_app in
+           EConstr.isRel sigma poss_pred && EConstr.destRel sigma poss_pred == pred_index
+         else
+           false
+       else
+         false
+    | Prod (na, ty, body) ->
+       is_predicate_e sigma (pred_index + 1) body
+    | _ -> raise Not_found
+
+  type catch_gen =
+    | UseCase
+    | UseFix
+
+  let is_case = function
+    | UseCase -> true
+    | UseFix -> false
+
+  (* This function assumes a context `context` ++ [`case_hyp` ; `F`]
+   * `F` is the fix and `case_hyp` is the corresponding branch for the construcgtor *)
+  let rec case_catch_induction sigma catch_gen ctx_length pred_index case_ty_e =
+    match EConstr.kind sigma case_ty_e with
+    | App (app, args) ->
+       if is_case catch_gen then
+         mkRel 1
+       else
+         let poss_app, poss_args = EConstr.destApp sigma args.(1) in
+         let n_args = Array.map (Vars.lift 1) poss_args in
+         mkApp (mkRel (ctx_length + 2), n_args)
+    | Prod (na, ty, body) ->
+       let _ = Feedback.msg_info (Pp.str "ctx_length       : " ++ Pp.int ctx_length) in
+       let body_e = case_catch_induction sigma catch_gen (ctx_length + 1) (pred_index + 1) body in
+       let prod_e =
+         if is_predicate_e sigma pred_index ty then
+           let ty_e = case_catch_induction sigma UseFix ctx_length pred_index ty in
+           let ty_app = mkApp (mkRel 1, [|ty_e|]) in
+           let _ = Feedback.msg_info (Pp.str "---------------- " ++ Pp.int ctx_length) in
+           let _ = Feedback.msg_info (Pp.str "ty         : " ++ Printer.pr_econstr ty) in
+           let _ = Feedback.msg_info (Pp.str "ty_app     : " ++ Printer.pr_econstr ty_app) in
+           let _ = Feedback.msg_info (Pp.str "body_e     : " ++ Printer.pr_econstr body_e) in
+           let sbt_body_e = Vars.subst1 ty_app body_e in
+           let _ = Feedback.msg_info (Pp.str "sbt_body_e : " ++ Printer.pr_econstr sbt_body_e) in
+           let _ = Feedback.msg_info (Pp.str "---------------- " ++ Pp.int ctx_length) in
+           sbt_body_e
+         else
+           let bd_app = mkApp (mkRel 2,[| mkRel 1 |]) in
+           let lf_body_e = Vars.liftn 1 3 body_e in
+           let sbt_body_e = Vars.subst1 bd_app lf_body_e in
+           mkLambda (na, Vars.lift 1 ty, sbt_body_e)
+       in
+       prod_e
+    | _ -> case_ty_e
+
+  let target_induction env sigma (mind_d, mind_n) source_ind_ty =
+    let one_d = Declarations.(mind_d.mind_packets.(mind_n)) in
+    let sigma, target_ind_ty = otranslate_type env sigma source_ind_ty in
+    let nparams = mind_d.mind_nparams in
+    let nargs = one_d.mind_nrealargs in
+    let ncons = Array.length one_d.mind_user_lc in
+    let predicate_pre_args = nparams + ncons + 2 in (* predicate arg plus exceptional constr *)
+    let _ = Feedback.msg_info (Pp.str "Number dec " ++ Pp.int predicate_pre_args) in
+    let predicate_ctx, predicate_fix_args =
+      EConstr.decompose_prod_n_assum sigma predicate_pre_args target_ind_ty
+    in
+    let specific_cons = Context.Rel.lookup (ncons + 1) predicate_ctx in
+    let specific_cons_ty = Context.Rel.Declaration.get_type specific_cons in
+    let ll = specific_cons_ty in
+    let _ = Feedback.msg_info (Pp.str " +++ -- +++ ") in
+    let _ = Feedback.msg_info (Printer.pr_econstr ll) in
+    let _ = Feedback.msg_info (Pp.str " +++ -- +++ ") in
+    let kk = case_catch_induction sigma UseCase (nparams + 2) 1 ll in
+    let _ = Feedback.msg_info (Printer.pr_econstr kk) in
+    
+    let partial_fix_ctx,_  = EConstr.decompose_prod_assum sigma predicate_fix_args in
+    let fix_ctx = 
+      Context.Rel.fold_outside Context.Rel.add partial_fix_ctx ~init:predicate_ctx
+    in
+
+    let fix_fi = ([|nargs|], 0) in
+    let fix_dec = (Name.Name (Id.of_string "F"), predicate_fix_args) in
+    ()
+
   let catch err translator env name (mind_d, mind_n) =
     let sigma = Evd.from_env env in
     let (sigma, env) = make_context err translator env sigma in
-
     let one_d = mind_d.mind_packets.(mind_n) in
     let sigma, induction_pr = source_induction sigma env name (mind_d, mind_n) in
-    let _ = Feedback.msg_info (Printer.pr_econstr induction_pr) in
-    (*let sigma, induction_pr_tr = otranslate_type env sigma induction_pr in*)
     let sigma, _ = Typing.type_of env.env_src sigma induction_pr in
+
+    let _ = target_induction env sigma (mind_d, mind_n) induction_pr in
+
     (sigma, induction_pr)
 
 end

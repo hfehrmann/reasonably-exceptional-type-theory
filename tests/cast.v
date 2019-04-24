@@ -1,18 +1,27 @@
 Require Import Weakly.Effects.
 
+Definition p := 
+  forall P : nat -> Type, P 0 -> (forall n : nat, P n -> P (S n)) -> forall n : nat, P n.
+
+
 Effect List Translate nat bool.
 Effect Translate False.
+
 
 
 Inductive vec (A: Type) (a: A): nat -> bool -> Type :=
 | vnil: vec A a 0 false
 | vcons: forall n, vec A a n true -> vec A a (S n) false . Print vec_rect.
 
-Inductive rvec (A: Type): nat -> Type :=
-| rvnil: rvec A 0
-| rvcons: forall n, rvec A n -> rvec A (S n).
+Inductive test (A: Type) (a: nat): nat ->  bool -> Type :=
+| test1: test A a 0 false -> test A a 0 false
+| test1: test A a 0 false
+| test2: forall n, test A a n true -> test A a (S n) false
+| test4: forall n b1, test A a n b1 -> (forall m b2, test A a m b2) -> test A a n b1
+| test5: forall (f: nat -> Type), f 1 -> test A a 1 true.
 
-Effect Translate rvec. Print rvec_ind_paramᵉ.
+Effect Translate test. Print test_rect. Effect Translate test_rect. Print test_rectᵉ.
+Print catch_testᵉ. Print rvec_ind_paramᵉ.
 
 Effect Definition gg: forall (E: Type) (A: Type) (P: forall n, rvec A n -> Type),
                              P 0 (rvnil A) ->
