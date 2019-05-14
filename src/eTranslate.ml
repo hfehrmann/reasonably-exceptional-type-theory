@@ -1381,13 +1381,7 @@ module InductionCatch = struct
          if is_predicate_e sigma pred_index ty then
            let ty_e = case_catch_induction sigma UseFix ctx_length pred_index ty in
            let ty_app = mkApp (mkRel 1, [|ty_e|]) in
-           let _ = Feedback.msg_info (Pp.str "---------------- " ++ Pp.int ctx_length) in
-           let _ = Feedback.msg_info (Pp.str "ty         : " ++ Printer.pr_econstr ty) in
-           let _ = Feedback.msg_info (Pp.str "ty_app     : " ++ Printer.pr_econstr ty_app) in
-           let _ = Feedback.msg_info (Pp.str "body_e     : " ++ Printer.pr_econstr body_e) in
            let sbt_body_e = Vars.subst1 ty_app body_e in
-           let _ = Feedback.msg_info (Pp.str "sbt_body_e : " ++ Printer.pr_econstr sbt_body_e) in
-           let _ = Feedback.msg_info (Pp.str "---------------- " ++ Pp.int ctx_length) in
            sbt_body_e
          else
            let bd_app = mkApp (mkRel 2,[| mkRel 1 |]) in
@@ -1409,14 +1403,15 @@ module InductionCatch = struct
     let predicate_ctx, predicate_fix_args =
       EConstr.decompose_prod_n_assum sigma predicate_pre_args target_ind_ty
     in
-    let specific_cons = Context.Rel.lookup (ncons + 1) predicate_ctx in
-    let specific_cons_ty = Context.Rel.Declaration.get_type specific_cons in
-    let ll = specific_cons_ty in
-    let _ = Feedback.msg_info (Pp.str " +++ -- +++ ") in
-    let _ = Feedback.msg_info (Printer.pr_econstr ll) in
-    let _ = Feedback.msg_info (Pp.str " +++ -- +++ ") in
-    let kk = case_catch_induction sigma UseCase (nparams + 2) 1 ll in
-    let _ = Feedback.msg_info (Printer.pr_econstr kk) in
+    let init_case_constr n =
+      let specific_cons = Context.Rel.lookup (ncons + 1 - n) predicate_ctx in
+      let specific_cons_ty = Context.Rel.Declaration.get_type specific_cons in
+      let specific_cons_ty = Vars.lift (-n) specific_cons_ty in
+      let pred_nparams_e = 1 + nparams + 1 in
+      let ccc = case_catch_induction sigma UseCase pred_nparams_e 1 specific_cons_ty in
+      ()
+    in
+    let _ = List.init (ncons + 1) init_case_constr in
     
     let partial_fix_ctx,_  = EConstr.decompose_prod_assum sigma predicate_fix_args in
     let fix_ctx = 
@@ -1424,7 +1419,8 @@ module InductionCatch = struct
     in
 
     let fix_fi = ([|nargs|], 0) in
-    let fix_dec = (Name.Name (Id.of_string "F"), predicate_fix_args) in
+    let fix_name = Name.Name (Id.of_string "F") in
+    let fix_typarray = [| predicate_fix_args |] in
     ()
 
   let catch err translator env name (mind_d, mind_n) =
