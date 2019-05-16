@@ -1363,34 +1363,36 @@ module InductionCatch = struct
     | UseCase -> true
     | UseFix -> false
 
-  (* This function assumes a context `context` ++ [`case_hyp` ; `F`]
-   * `F` is the fix and `case_hyp` is the corresponding branch for the construcgtor *)
-  let rec case_catch_induction sigma catch_gen ctx_length pred_index case_ty_e =
-    match EConstr.kind sigma case_ty_e with
-    | App (app, args) ->
-       if is_case catch_gen then
-         mkRel 1
-       else
-         let poss_app, poss_args = EConstr.destApp sigma args.(1) in
-         let n_args = Array.map (Vars.lift 1) poss_args in
-         mkApp (mkRel (ctx_length + 2), n_args)
-    | Prod (na, ty, body) ->
-       let _ = Feedback.msg_info (Pp.str "ctx_length       : " ++ Pp.int ctx_length) in
-       let body_e = case_catch_induction sigma catch_gen (ctx_length + 1) (pred_index + 1) body in
-       let prod_e =
-         if is_predicate_e sigma pred_index ty then
-           let ty_e = case_catch_induction sigma UseFix ctx_length pred_index ty in
-           let ty_app = mkApp (mkRel 1, [|ty_e|]) in
-           let sbt_body_e = Vars.subst1 ty_app body_e in
-           sbt_body_e
+  (* This function take as a parameters the type corresponding to a specific branch in the target 
+     translation and assumes that their index are related to a context P :: arguments :: E. *)
+  let case_catch_induction sigma case_ty_e =  
+    let rec case_catch_induction_rec sigma catch_gen recursion_index case_ty_e =
+      match EConstr.kind sigma case_ty_e with
+      | App (app, args) ->
+         if is_case catch_gen then
+           mkRel 1
          else
-           let bd_app = mkApp (mkRel 2,[| mkRel 1 |]) in
-           let lf_body_e = Vars.liftn 1 3 body_e in
-           let sbt_body_e = Vars.subst1 bd_app lf_body_e in
-           mkLambda (na, Vars.lift 1 ty, sbt_body_e)
-       in
-       prod_e
-    | _ -> case_ty_e
+           let poss_app, poss_args = EConstr.destApp sigma args.(1) in
+           let n_args = Array.map (Vars.lift 1) poss_args in
+           mkApp (mkRel (recursion_index + 2), n_args)
+      | Prod (na, ty, body) ->
+         let body_e = case_catch_induction_rec sigma catch_gen (recursion_index + 1)  body in
+         let prod_e =
+           if is_predicate_e sigma (recursion_index + 1) ty then
+             let ty_e = case_catch_induction_rec sigma UseFix recursion_index ty in
+             let ty_app = mkApp (mkRel 1, [|ty_e|]) in
+             let sbt_body_e = Vars.subst1 ty_app body_e in
+             sbt_body_e
+           else
+             let bd_app = mkApp (mkRel 2,[| mkRel 1 |]) in
+             let lf_body_e = Vars.liftn 1 3 body_e in
+             let sbt_body_e = Vars.subst1 bd_app lf_body_e in
+             mkLambda (na, Vars.lift 1 ty, sbt_body_e)
+         in
+         prod_e
+      | _ -> case_ty_e
+    in
+    case_catch_induction_rec sigma UseCase 0 case_ty_e
 
   let target_induction env sigma (mind_d, mind_n) source_ind_ty =
     let one_d = Declarations.(mind_d.mind_packets.(mind_n)) in
@@ -1407,8 +1409,7 @@ module InductionCatch = struct
       let specific_cons = Context.Rel.lookup (ncons + 1 - n) predicate_ctx in
       let specific_cons_ty = Context.Rel.Declaration.get_type specific_cons in
       let specific_cons_ty = Vars.lift (-n) specific_cons_ty in
-      let pred_nparams_e = 1 + nparams + 1 in
-      let ccc = case_catch_induction sigma UseCase pred_nparams_e 1 specific_cons_ty in
+      let ccc = case_catch_induction sigma specific_cons_ty in
       ()
     in
     let _ = List.init (ncons + 1) init_case_constr in
