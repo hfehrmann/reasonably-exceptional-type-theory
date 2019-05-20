@@ -1,13 +1,17 @@
 Require Import Weakly.Effects.
 
-Definition p := 
+Definition p :=
   forall P : nat -> Type, P 0 -> (forall n : nat, P n -> P (S n)) -> forall n : nat, P n.
 
 
 Effect List Translate nat bool.
 Effect Translate False.
 
-
+Set Printing Universes.
+Inductive ll: Type -> Type := ll_: forall A, ll A.
+Print ll_rect. Effect Translate ll. Effect Translate ll_rect.
+Print ll_rect.
+(*(fun (T : Type@{Top.101}) (l : ll T) => _UNBOUND_REL_6 T l)*) 
 
 Inductive vec (A: Type) (a: A): nat -> bool -> Type :=
 | vnil: vec A a 0 false
@@ -15,7 +19,7 @@ Inductive vec (A: Type) (a: A): nat -> bool -> Type :=
 
 Inductive test (A: Type) (a: nat): nat ->  bool -> Type :=
 | test1: test A a 0 false -> test A a 0 false
-| test1: test A a 0 false
+(* | test1: test A a 0 false *)
 | test2: forall n, test A a n true -> test A a (S n) false
 | test4: forall n b1, test A a n b1 -> (forall m b2, test A a m b2) -> test A a n b1
 | test5: forall (f: nat -> Type), f 1 -> test A a 1 true.
