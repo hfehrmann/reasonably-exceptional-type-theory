@@ -7,7 +7,7 @@ Definition p :=
 Effect List Translate nat bool.
 Effect Translate False.
 
-Set Printing Universes.
+
 Inductive ll: Type -> Type := ll_: forall A, ll A.
 Print ll_rect. Effect Translate ll. Effect Translate ll_rect.
 Print ll_rect.

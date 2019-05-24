@@ -1396,22 +1396,21 @@ module InductionCatch = struct
 
   let target_induction env sigma name (mind_d, mind_n) source_ind_ty =
     let one_d = Declarations.(mind_d.mind_packets.(mind_n)) in
+    let _ = Feedback.msg_info (Names.MutInd.print name) in
     let sigma, target_ind_ty = otranslate_type env sigma source_ind_ty in
     let nparams = mind_d.mind_nparams in
     let nargs = one_d.mind_nrealargs in
     let ncons = Array.length one_d.mind_user_lc in
     let predicate_pre_args = nparams + ncons + 2 in (* predicate arg plus exceptional constr *)
-    let _ = Feedback.msg_info (Pp.str "Number dec " ++ Pp.int predicate_pre_args) in
     let predicate_ctx, predicate_fix_args =
       EConstr.decompose_prod_n_assum sigma predicate_pre_args target_ind_ty
     in
     let fix_body =
       let partial_fix_ctx, _  = EConstr.decompose_prod_assum sigma predicate_fix_args in
-      let case_info_e = Inductiveops.make_case_info env.env_src (name, mind_n) MatchStyle in
       let predicate =
         let predicate_body =
           let array_init = Array.init (nargs + 1) (fun n -> mkRel (nargs + 1 - n)) in 
-          mkApp (mkRel (ncons + 1 + nargs + 2), array_init)
+          mkApp (mkRel (ncons + 1 + 2*(nargs + 1) + 1), array_init)
         in
         let index_list = List.init (nargs + 1) (fun i -> i + 1) in
         let fold_left partial_body index =
@@ -1425,22 +1424,31 @@ module InductionCatch = struct
         let specific_cons = Context.Rel.lookup (ncons + 1 - n) predicate_ctx in
         let specific_cons_ty = Context.Rel.Declaration.get_type specific_cons in
         let specific_cons_ty = Vars.lift (-n) specific_cons_ty in
-        let lll = case_catch_induction sigma specific_cons_ty in
-        let _ = Feedback.msg_info (Printer.pr_econstr lll) in
-        lll
+        let case = case_catch_induction sigma specific_cons_ty in
+        let lifted_case = Vars.liftn (nargs + ncons + 2) 3 case in 
+        let subst_case = Vars.subst1 (mkRel (nargs + ncons + 2 - n)) lifted_case in
+        let lifted_subst_case = Vars.liftn 1 2 subst_case in
+        let final_subst_case = Vars.subst1 (mkRel (nargs + 2)) lifted_subst_case in 
+        final_subst_case
       in
       let match_cases_branch = Array.init (ncons + 1) init_case_constr in
-      let _ = Feedback.msg_info (Printer.pr_econstr predicate) in
+      let case_info_e = Inductiveops.make_case_info env.env_src (name, mind_n) LetPatternStyle in
       let match_body = EConstr.mkCase (case_info_e, predicate, (mkRel 1), match_cases_branch) in
       let body = it_mkLambda_or_LetIn match_body partial_fix_ctx in
       let _ = Feedback.msg_info (Printer.pr_econstr body) in
-      (*EConstr.mkCase (case_info_e, predicate, (mkRel 1), match_cases_branch)*) mkRel 1
+      let _ = Feedback.msg_info (Pp.str "-----------------------") in
+      body
     in
-    let _ = Feedback.msg_info (Printer.pr_econstr fix_body) in
 
     let fix_fi = ([|nargs|], 0) in
-    let fix_name = [| Name.Name (Id.of_string "F") |] in
-    let fix_typarray = [| predicate_fix_args |] in
+    let fix_recdeclaration =
+      let fix_name = [| Name.Name (Id.of_string "F") |] in
+      let fix_typarray = [| predicate_fix_args |] in
+      let fix_bodies = [| fix_body |] in
+      (fix_name, fix_typarray, fix_bodies)
+    in
+    let fix_term = mkFix (fix_fi, fix_recdeclaration) in
+    let _ = Feedback.msg_info (Printer.pr_econstr fix_term) in
     ()
 
   let catch err translator env name (mind_d, mind_n) =
@@ -1450,7 +1458,8 @@ module InductionCatch = struct
     let sigma, induction_pr = source_induction sigma env name (mind_d, mind_n) in
     let sigma, _ = Typing.type_of env.env_src sigma induction_pr in
 
-    let _ = target_induction env sigma name (mind_d, mind_n) induction_pr in
+    let _, (name_e, _) = get_ind env (name, mind_n) in
+    let _ = target_induction env sigma name_e (mind_d, mind_n) induction_pr in
 
     (sigma, induction_pr)
 
