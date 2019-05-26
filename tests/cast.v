@@ -4,7 +4,8 @@ Definition p :=
   forall P : nat -> Type, P 0 -> (forall n : nat, P n -> P (S n)) -> forall n : nat, P n.
 
 
-Effect List Translate nat bool.
+Effect Translate nat.
+Effect Translate bool.
 Effect Translate False.
 
 

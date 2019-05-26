@@ -332,7 +332,9 @@ let instantiate_parametric_modality err translator (name, n) ext =
 
   (* Catch Induction *)
   let env = Global.env () in
-  let sigma, catch_induction = ETranslate.catch_induction err translator env name (mind, 0) in
+  let sigma, catch_induction, catch_induction_e =
+    ETranslate.catch_induction err translator env name (mind, 0)
+  in
   let one_ind = Declarations.(mind.mind_packets.(0)) in
   let name = Declarations.(one_ind.mind_typename) in
   let catch_name = Nameops.add_prefix "catch_" name in
