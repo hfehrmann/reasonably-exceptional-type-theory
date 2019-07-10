@@ -30,7 +30,12 @@ let empty_translator =
     Cmap.add s (GlobGen (ConstRef t)) acc
   in
   let refss = List.fold_left map Cmap.empty refss in 
-  let inds = Mindmap.add param_mod (GlobGen param_mod_e) Mindmap.empty in
+  let inds =
+    Mindmap.add
+      param_mod
+      (GlobGen param_mod_e)
+      (Mindmap.add tm_False (GlobGen tm_False_e) Mindmap.empty)
+  in
   let prefs = Cmap.empty in
   let pinds = Mindmap.empty in
   {

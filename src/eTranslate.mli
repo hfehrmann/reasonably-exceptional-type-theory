@@ -35,6 +35,8 @@ val tm_exception: Names.Constant.t
 val tm_exception_e: Names.Constant.t
 val tm_raise: Names.Constant.t
 val tm_raise_e: Names.Constant.t
+val tm_False: Names.MutInd.t
+val tm_False_e: Names.MutInd.t
 
 val translate :
   effect -> translator -> Environ.env -> Evd.evar_map -> EConstr.t -> Evd.evar_map * EConstr.t

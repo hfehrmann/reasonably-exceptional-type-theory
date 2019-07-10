@@ -87,6 +87,9 @@ let tm_raise = Constant.make1 (make_kn "raise")
 let tm_raise_e = Constant.make1 (make_kn "raiseᵉ")
 
 
+let tm_False, _ = Globnames.destIndRef (Lazy.force Coqlib.coq_False_ref)
+let tm_False_e = MutInd.make1 (make_kn "Falseᵉ")
+
 
 let name_errtype = Id.of_string "E"
 let name_err = Id.of_string "e"
@@ -929,6 +932,7 @@ let param_instance_inductive err translator env (name,name_e,name_param) (one_d,
   let def_args = if gen then mkRel e :: args else args in
   let param_ty = mkApp (typeval, [| mkRel e; ty; applist (def, def_args) |]) in
 
+  (* param of target *)
   let sigma, (ind_p, u) = Evd.fresh_inductive_instance env sigma (name_param, n) in
   let ind_p = mkIndU (ind_p, EInstance.make u) in
   let gen = Option.is_empty err in
@@ -937,17 +941,31 @@ let param_instance_inductive err translator env (name,name_e,name_param) (one_d,
   let inner_func = applist (ind_p, args) in
   let func = mkLambda (Anonymous, ty, mkApp (inner_func, [| mkRel 1 |])) in
 
+  (* param_correct of target *)
   let param_raise_ctx = Context.Rel.empty in
   let sigma, tm_exc_e = Evd.fresh_global env sigma (ConstRef tm_exception_e) in
   let tm_exc_e = EConstr.of_constr tm_exc_e in
-  let tm_exc_e_tm = mkApp (tm_exc_e, [|mkRel e|]) in
-  let param_raise_ctx = Context.Rel.add (LocalAssum (Anonymous, tm_exc_e_tm)) param_raise_ctx in
-  let sigma, raise_ = Evd.fresh_global env sigma (ConstRef tm_raise_e) in
-  let new_ty = Vars.lift 1 ty in
-  let param_raise_tm = mkApp (mkRel (e + 1), [|mkRel (e + 2); new_ty; mkRel 1|]) in
+  let new_e = e + 2 in
+  let new_ty = Vars.lift 3 ty in
+  let tm_exc_e_tm = mkApp (tm_exc_e, [|mkRel new_e|]) in
+  let tm_exec_name = Name (Id.of_string "e") in
+  let param_raise_ctx = Context.Rel.add (LocalAssum (tm_exec_name, tm_exc_e_tm)) param_raise_ctx in
+  let sigma, raise_e = Evd.fresh_global env sigma (ConstRef tm_raise_e) in
+  let raise_e = EConstr.of_constr raise_e in
+  let param_raise_tm = mkApp (raise_e, [|mkRel (new_e + 1); new_ty; mkRel 1|]) in
   let param_raise_ctx = Context.Rel.add (LocalAssum (Anonymous, param_raise_tm)) param_raise_ctx in
-  let ss = it_mkLambda_or_LetIn (mkRel 1) param_raise_ctx in
-  (* Apply inversion which is not quite direct as I thought *)
+  let sigma, tm_false_e = Evd.fresh_inductive_instance env sigma (tm_False_e, 0) in
+  let tm_false_e = EConstr.of_constr tm_false_e in
+
+  let ss = it_mkProd_or_LetIn tm_false_e param_raise_ctx in
+
+  let ustate = Evd.evar_universe_context sigma in
+  let inv_name_id = Id.of_string "F" in
+  let intros_tactic = Tactics.intros_using [Id.of_string "H"; inv_name_id] in
+  let inv_tactic = Inv.inv_tac inv_name_id in
+  let final_tactic = Proofview.tclTHEN intros_tactic inv_tactic in
+  (*let c, _, uu = Pfedit.build_by_tactic cenv.env_tgt ustate ss final_tactic in*)
+  let _ = Feedback.msg_info (Printer.pr_econstr ss) in
 
   let body = mkApp (param_constr, [|param_ty; func|]) in
   let param_instance = it_mkLambda_or_LetIn body ctx in
