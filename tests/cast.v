@@ -1,10 +1,13 @@
 Require Import Weakly.Effects.
 
-Definition p :=
-  forall P : nat -> Type, P 0 -> (forall n : nat, P n -> P (S n)) -> forall n : nat, P n.
+Inductive vec (A: Type): nat -> Type :=
+| vnil: vec A 0
+| vcons: forall n, vec A n -> A -> vec A (S n).
 
 
-Effect Translate nat.
+Effect Translate nat. Print nat_instanceᵉ.
+Effect Translate vec.
+Print nat_instanceᵉ.
 Effect Translate bool.
 Effect Translate False.
 

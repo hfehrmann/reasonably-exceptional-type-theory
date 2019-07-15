@@ -52,10 +52,10 @@ end.
 
 Axiom Exception: Type.
 Definition Exceptionᵉ (E: Type): type E := TypeVal E E (fun e => e).
-Axiom raise: forall (A: Type), Exception -> A. 
+Axiom raise: forall (A: Type), Exception -> A.
 Definition raiseᵉ (E: Type) (A: @El E (@Typeᵉ E)) (e: @El E (Exceptionᵉ E)) := Err A e.
 
-Inductive Falseᵉ: Prop :=.
+Inductive Falseᵉ (E: Type): Prop :=.
 
 Set Primitive Projections.
 Class ParamMod (A: Type) := {
@@ -65,7 +65,7 @@ Class ParamMod (A: Type) := {
 
 Class ParamModᵉ (E: Type) (A: @El E (@Typeᵉ E)) := {
   paramᵉ: @El E A -> Prop;
-  (* param_correctᵉ: forall e, paramᵉ (raiseᵉ E A e) -> (Falseᵉ E) *)
+  param_correctᵉ: forall e, paramᵉ (raiseᵉ E A e) -> (Falseᵉ E)
 }.
 Unset Primitive Projections.
 

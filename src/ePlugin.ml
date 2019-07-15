@@ -18,18 +18,18 @@ let translate_name id =
 
 type translator = ETranslate.translator
 
-let empty_translator = 
-  let open ETranslate in 
+let empty_translator =
+  let open ETranslate in
   let refss = [
       (param_cst, param_cst_e);
       (tm_exception, tm_exception_e);
       (tm_raise, tm_raise_e)
     ]
   in
-  let map acc (s,t) = 
+  let map acc (s,t) =
     Cmap.add s (GlobGen (ConstRef t)) acc
   in
-  let refss = List.fold_left map Cmap.empty refss in 
+  let refss = List.fold_left map Cmap.empty refss in
   let inds =
     Mindmap.add
       param_mod
@@ -162,7 +162,7 @@ let solve_evars env sigma c =
 let declare_axiom id uctx ty =
   let uctx = Entries.Monomorphic_const_entry uctx in
   let pe = (None, (ty, uctx), None) in
-  let pd = Entries.ParameterEntry pe in  
+  let pd = Entries.ParameterEntry pe in
   let decl = (pd, IsAssumption Definitional) in
   let cst_ = Declare.declare_constant id decl in
   cst_
@@ -175,7 +175,7 @@ let declare_constant id uctx c t =
   let cst_ = Declare.declare_constant id decl in
   cst_
 
-let declare_constant_wo_ty id uctx c = 
+let declare_constant_wo_ty id uctx c =
   let uctx = Entries.Monomorphic_const_entry uctx in
   let ce = Declare.definition_entry ~univs:uctx c in
   let cd = Entries.DefinitionEntry ce in
@@ -200,7 +200,6 @@ let translate_constant err translator cst ids =
   let body, _ = Option.get (Global.body_of_constant cst) in
   let body = EConstr.of_constr body in
   let (sigma, body) = ETranslate.translate err translator env sigma body in
-  let _ = Feedback.msg_info (Printer.pr_econstr body) in
   let evdref = ref sigma in
   let () = Typing.e_check env evdref body typ in
   let sigma = !evdref in
@@ -221,8 +220,8 @@ let instantiate_error env sigma err gen c_ = match err with
   else (sigma, c_)
 
 let primitives_from_declaration env (ind: Names.mutual_inductive) =
-  let open Declarations in 
-  let (mind, _) = Inductive.lookup_mind_specif env (ind, 0) in  
+  let open Declarations in
+  let (mind, _) = Inductive.lookup_mind_specif env (ind, 0) in
   let (_, projs, _) = Option.get (Option.get mind.mind_record) in
   Array.to_list projs
 
@@ -230,17 +229,17 @@ let translate_inductive_gen f err translator (ind, _) =
   let env = Global.env () in
   let (mind, _ as specif) = Inductive.lookup_mind_specif env (ind, 0) in
 
-  let primitive_records = Inductive.is_primitive_record specif in 
+  let primitive_records = Inductive.is_primitive_record specif in
 
   let mind' = EUtil.process_inductive mind in
   let mind_ = f err translator env ind mind mind' in
   let ((_, kn), _) = Declare.declare_mind mind_ in
   let ind_ = Global.mind_of_delta_kn kn in
-  let extensions = 
-    if primitive_records then 
+  let extensions =
+    if primitive_records then
       let env = Global.env () in
-      let proj  = primitives_from_declaration env ind in 
-      let proj_ = primitives_from_declaration env ind_ in 
+      let proj  = primitives_from_declaration env ind in
+      let proj_ = primitives_from_declaration env ind_ in
       let pair = List.combine proj proj_ in
       List.map (fun (p, pe) -> ExtConstant (p, ConstRef pe)) pair
     else
@@ -257,9 +256,9 @@ let one_ind_in_prop ind_arity =
 let typeclass_declaration err translator ind_names_decl ind_name param_ind =
   let env = Global.env () in
   let func = ETranslate.param_instance_inductive in
-  
+
   let (sigma, base_instance_ty, pinstance) = func err translator env ind_names_decl param_ind in
-  
+
   (* Polymorphic Axiom declaration *)
   let id = Nameops.add_suffix ind_name  "_instance" in
   let uctx = UState.context_set (Evd.evar_universe_context sigma) in
@@ -268,34 +267,34 @@ let typeclass_declaration err translator ind_names_decl ind_name param_ind =
   let qualid = Libnames.make_qualid dirPath (Label.to_id label) in
   let () = Classes.existing_instance true (CAst.make (Libnames.Qualid qualid)) None in
   (* -- *)
-  
+
   let pid = translate_name id in
   let tp = EConstr.to_constr sigma pinstance in
   let pinstance_name = declare_constant_wo_ty pid uctx tp in
   ExtConstant (instance_name, ConstRef pinstance_name)
 
-let instantiate_parametric_modality err translator (name, n) ext = 
-  let module D = Declarations in 
+let instantiate_parametric_modality err translator (name, n) ext =
+  let module D = Declarations in
   let env = Global.env () in
   let (mind, _ as specif) = Inductive.lookup_mind_specif env (name, 0) in
   let find_map = function
     | ExtInductive (n,m) when MutInd.equal name n -> Some m
     | _ -> None
   in
-  let name_e = List.find_map find_map ext in 
+  let name_e = List.find_map find_map ext in
   let global_app name = match err with
     | None -> ETranslate.GlobGen name
     | Some exn -> ETranslate.GlobImp (Refmap.singleton exn name)
   in
-  let translator = 
-    ETranslate.({ translator with inds = Mindmap.add name (global_app name_e) translator.inds }) 
+  let translator =
+    ETranslate.({ translator with inds = Mindmap.add name (global_app name_e) translator.inds })
   in
   let mind' = EUtil.process_inductive mind in
   let mind_ = ETranslate.param_mutual_inductive err translator env (name, name_e) mind mind' in
 
   let ((_, kn), _) = Declare.declare_mind mind_ in
-  let name_param = Global.mind_of_delta_kn kn in 
-  let iter id = 
+  let name_param = Global.mind_of_delta_kn kn in
+  let iter id =
     let id_ind = Nameops.add_suffix id "_ind" in
     let reference = CAst.make @@ Misctypes.AN (CAst.make (Libnames.Ident id)) in
     let scheme = Vernacexpr.InductionScheme (true, reference, InProp) in
@@ -305,9 +304,9 @@ let instantiate_parametric_modality err translator (name, n) ext =
   let () = List.iter iter mind_names in
 
   let ind_name_decl = (name, name_e, name_param) in
-  let ty_decl = typeclass_declaration in 
+  let ty_decl = typeclass_declaration in
   let fold_map (i, translator) one_d =
-    let open ETranslate in 
+    let open ETranslate in
     let ext = ty_decl err translator ind_name_decl D.(one_d.mind_typename) (one_d, i) in
     let refs = match ext with
       | ExtConstant (cst, glob_ref) -> Cmap.add cst (global_app glob_ref) translator.refs
@@ -316,13 +315,14 @@ let instantiate_parametric_modality err translator (name, n) ext =
     let translator = { translator with refs } in
     ((succ i, translator), ext)
   in
-  let ((_, translator), instances) = 
-    List.fold_map fold_map (0, translator) (Array.to_list D.(mind.mind_packets)) 
+  let ((_, translator), instances) =
+    List.fold_map fold_map (0, translator) (Array.to_list D.(mind.mind_packets))
   in
-  
+
   (* Parametrict induction *)
   let env = Global.env () in
-  let (sigma, ind, ind_e, ind_e_ty) = ETranslate.parametric_induction err translator env name mind in
+  let param_induction = ETranslate.parametric_induction in
+  let (sigma, ind, ind_e, ind_e_ty) = param_induction err translator env name mind in
   let ind_name = Declarations.(mind.mind_packets.(0).mind_typename) in
   let induction_name = Nameops.add_suffix ind_name "_ind_param" in
   let uctx = UState.context_set (Evd.evar_universe_context sigma) in
@@ -345,7 +345,7 @@ let instantiate_parametric_modality err translator (name, n) ext =
   let catch_name = Nameops.add_prefix "catch_" name in
   let uctx = UState.context_set (Evd.evar_universe_context sigma) in
   let catch_ind = declare_axiom catch_name uctx (EConstr.to_constr sigma catch_induction) in
-  
+
   let catch_ind_e = EUtil.translate_name catch_name in
   let name_e = EUtil.translate_inductive_name name in
   let reference = CAst.make @@ Misctypes.AN (CAst.make (Libnames.Ident name_e)) in
@@ -357,10 +357,10 @@ let instantiate_parametric_modality err translator (name, n) ext =
   let catch_ext = ExtConstant (catch_ind, ConstRef catch_ind_e_cst) in
   (* ********************* *)
 
-  ExtConstant (cst_ind, ConstRef cst_ind_e) :: (*catch_ext ::*) instances  
+  ExtConstant (cst_ind, ConstRef cst_ind_e) :: (*catch_ext ::*) instances
 
 let try_instantiate_parametric_modality err translator (name, n) ext  =
-  let module D = Declarations in 
+  let module D = Declarations in
   let env = Global.env () in
   let (mind, _ as specif) = Inductive.lookup_mind_specif env (name, 0) in
   let arity_mind = Array.map (fun ind -> D.(ind.mind_arity) ) D.(mind.mind_packets) in
@@ -386,7 +386,7 @@ let msg_translate = function
     str " has been translated as " ++ Printer.pr_global dst ++ str ".")
   in
   prlist_with_sep fnl pr l
-| ExtParamInductive _ -> 
+| ExtParamInductive _ ->
    str "Parametric inducitve extension"
 | ExtParamConstant _ ->
    str "Parametric constant extension"
@@ -464,14 +464,14 @@ end
 module Generic = struct
   open Libnames
   open Names
-         
+
   let generic_translate ?exn
-        (gr_list:reference list) 
+        (gr_list:reference list)
         (generic: ?exn:reference -> ?names:Id.t list-> reference -> unit) =
     let fold () gr = generic ?exn gr in
     List.fold_left fold () gr_list
 end
 open Generic
-                      
+
 let list_translate ?exn gr_list =
   generic_translate ?exn gr_list translate

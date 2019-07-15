@@ -314,10 +314,6 @@ let rec otranslate env sigma c = match EConstr.kind sigma c with
 | Fix (fi, recdef) ->
   let (sigma, recdefe) = otranslate_recdef env sigma recdef in
   let _, typ_fi, bd_fi = recdef in
-  let _ = Feedback.msg_info (Printer.pr_econstr (typ_fi.(snd fi))) in
-  let _ = Feedback.msg_info (Printer.pr_econstr (bd_fi.(snd fi))) in
-  let _ = Feedback.msg_info (Pp.prlist Pp.int (ArrayLabels.to_list (fst fi))) in
-  let _ = Feedback.msg_info (Pp.int (snd fi)) in
   let r = mkFix (fi, recdefe) in
   (sigma, r)
 | CoFix (fi, recdef) ->
@@ -922,7 +918,7 @@ let param_instance_inductive err translator env (name,name_e,name_param) (one_d,
   let args =  List.rev (List.init (List.length ctx - 1) (fun i -> mkRel (i + 1))) in
   let sigma, (ind, u) = Evd.fresh_inductive_instance env sigma (name_e, n) in
   let ind = mkIndU (ind, EInstance.make u) in
-  let ind = if gen then mkApp (ind, [|mkRel (List.length ctx)|]) else ind in
+  let ind = if gen then mkApp (ind, [|mkRel e|]) else ind in
   let ty = applist (ind, args) in
   let (sigma, typeval) = Evd.fresh_global env sigma typeval_e in
   let typeval = EConstr.of_constr typeval in
@@ -945,31 +941,44 @@ let param_instance_inductive err translator env (name,name_e,name_param) (one_d,
   let param_raise_ctx = Context.Rel.empty in
   let sigma, tm_exc_e = Evd.fresh_global env sigma (ConstRef tm_exception_e) in
   let tm_exc_e = EConstr.of_constr tm_exc_e in
-  let new_e = e + 2 in
-  let new_ty = Vars.lift 3 ty in
-  let tm_exc_e_tm = mkApp (tm_exc_e, [|mkRel new_e|]) in
+  let tm_exc_e_tm = mkApp (tm_exc_e, [|mkRel e|]) in
+  let sigma, tm_el = Evd.fresh_global env sigma el_e in
+  let tm_exc_e_tm = mkApp (EConstr.of_constr tm_el, [|mkRel e; tm_exc_e_tm|]) in
   let tm_exec_name = Name (Id.of_string "e") in
   let param_raise_ctx = Context.Rel.add (LocalAssum (tm_exec_name, tm_exc_e_tm)) param_raise_ctx in
-  let sigma, raise_e = Evd.fresh_global env sigma (ConstRef tm_raise_e) in
-  let raise_e = EConstr.of_constr raise_e in
-  let param_raise_tm = mkApp (raise_e, [|mkRel (new_e + 1); new_ty; mkRel 1|]) in
-  let param_raise_ctx = Context.Rel.add (LocalAssum (Anonymous, param_raise_tm)) param_raise_ctx in
-  let sigma, tm_false_e = Evd.fresh_inductive_instance env sigma (tm_False_e, 0) in
-  let tm_false_e = EConstr.of_constr tm_false_e in
 
-  let ss = it_mkProd_or_LetIn tm_false_e param_raise_ctx in
+  let exc_constructor = ((name_e, n), (Array.length one_d.mind_user_lc) + 1) in
+  let sigma,(exc_constr, u) = Evd.fresh_constructor_instance env sigma exc_constructor in
+  let exc_constr = mkConstructU (exc_constr, EInstance.make u) in
+  let exc_constr = if gen then mkApp (exc_constr, [|mkRel (e + 1)|]) else exc_constr in
+  let exc_constr = applist (exc_constr, args) in
+  let sigma, tm_typeval_e = fresh_global cenv sigma typeval_e in
+  let type_arg = mkApp (tm_typeval_e, [|mkRel (e + 1); Vars.lift 1 ty; exc_constr|]) in
+  let sigma, raise_e = fresh_global cenv sigma (ConstRef tm_raise_e) in
+  let raise_tm = mkApp (raise_e, [|mkRel (e + 1); type_arg; mkRel 1|]) in
+  let param_raise_tm = mkApp (Vars.lift 1 func, [|raise_tm|]) in
+  let param_raise_ctx = Context.Rel.add (LocalAssum (Anonymous, param_raise_tm)) param_raise_ctx in
+
+  let sigma, (tm_false_e, tm_false_univ) = Evd.fresh_inductive_instance env sigma (tm_False_e, 0) in
+  let tm_false_e = EConstr.mkIndU (tm_false_e, EInstance.make tm_false_univ) in
+  let contradiction = mkApp (tm_false_e, [|mkRel (e + 2)|]) in
+
+  let theorem = it_mkProd_or_LetIn contradiction param_raise_ctx in
+  let new_theorem = EConstr.it_mkProd_or_LetIn theorem (EConstr.rel_context cenv.env_tgt) in
 
   let ustate = Evd.evar_universe_context sigma in
-  let inv_name_id = Id.of_string "F" in
-  let intros_tactic = Tactics.intros_using [Id.of_string "H"; inv_name_id] in
-  let inv_tactic = Inv.inv_tac inv_name_id in
-  let final_tactic = Proofview.tclTHEN intros_tactic inv_tactic in
-  (*let c, _, uu = Pfedit.build_by_tactic cenv.env_tgt ustate ss final_tactic in*)
-  let _ = Feedback.msg_info (Printer.pr_econstr ss) in
+  let inv_tactic = Misctypes.(Inv.inv FullInversion None (AnonHyp 1)) in
+  let param_correct, _, state = Pfedit.build_by_tactic cenv.env_tgt ustate new_theorem inv_tactic in
+  let param_correct  = EConstr.of_constr param_correct in
+  let _, param_correct = EConstr.decompose_lam_n_assum sigma (List.length ctx) param_correct in
+  let sigma = Evd.merge_universe_context sigma state in
+  let _ = Feedback.msg_info (Printer.pr_econstr param_correct) in
 
-  let body = mkApp (param_constr, [|param_ty; func|]) in
+  (*let body = mkApp (param_constr, [|param_ty; func|]) in*)
+  let body = mkApp (param_constr, [|param_ty; func; param_correct|]) in
   let param_instance = it_mkLambda_or_LetIn body ctx in
   let sigma,_ = Typing.type_of env sigma param_instance in
+  let _ = Feedback.msg_info (Pp.str "asdasdasdasd") in
 
   (sigma, instance_ty, param_instance)
 
@@ -1361,7 +1370,7 @@ module InductionCatch = struct
 
   (* This function take as a parameters the type corresponding to a specific branch in the target 
      translation and assumes that their index are related to a context P :: arguments :: E. *)
-  let case_catch_induction sigma case_ty_e =  
+  let case_catch_induction sigma case_ty_e =
     let rec case_catch_induction_rec sigma catch_gen recursion_index case_ty_e =
       match EConstr.kind sigma case_ty_e with
       | App (app, args) ->
@@ -1392,7 +1401,6 @@ module InductionCatch = struct
 
   let target_induction env sigma name (mind_d, mind_n) source_ind_ty =
     let one_d = Declarations.(mind_d.mind_packets.(mind_n)) in
-    let _ = Feedback.msg_info (Names.MutInd.print name) in
     let sigma, target_ind_ty = otranslate_type env sigma source_ind_ty in
     let nparams = mind_d.mind_nparams in
     let nargs = one_d.mind_nrealargs in
