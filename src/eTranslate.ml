@@ -313,7 +313,6 @@ let rec otranslate env sigma c = match EConstr.kind sigma c with
   (sigma, r)
 | Fix (fi, recdef) ->
   let (sigma, recdefe) = otranslate_recdef env sigma recdef in
-  let _, typ_fi, bd_fi = recdef in
   let r = mkFix (fi, recdefe) in
   (sigma, r)
 | CoFix (fi, recdef) ->
@@ -972,13 +971,10 @@ let param_instance_inductive err translator env (name,name_e,name_param) (one_d,
   let param_correct  = EConstr.of_constr param_correct in
   let _, param_correct = EConstr.decompose_lam_n_assum sigma (List.length ctx) param_correct in
   let sigma = Evd.merge_universe_context sigma state in
-  let _ = Feedback.msg_info (Printer.pr_econstr param_correct) in
 
-  (*let body = mkApp (param_constr, [|param_ty; func|]) in*)
   let body = mkApp (param_constr, [|param_ty; func; param_correct|]) in
   let param_instance = it_mkLambda_or_LetIn body ctx in
   let sigma,_ = Typing.type_of env sigma param_instance in
-  let _ = Feedback.msg_info (Pp.str "asdasdasdasd") in
 
   (sigma, instance_ty, param_instance)
 
@@ -1368,7 +1364,7 @@ module InductionCatch = struct
     | UseCase -> true
     | UseFix -> false
 
-  (* This function take as a parameters the type corresponding to a specific branch in the target 
+  (* This function take as a parameters the type corresponding to a specific branch in the target
      translation and assumes that their index are related to a context P :: arguments :: E. *)
   let case_catch_induction sigma case_ty_e =
     let rec case_catch_induction_rec sigma catch_gen recursion_index case_ty_e =
@@ -1399,6 +1395,14 @@ module InductionCatch = struct
     in
     case_catch_induction_rec sigma UseCase 0 case_ty_e
 
+  let lift_predicate_declarations lift_by ctx =
+    let open Context.Rel in
+    let fold_func d (n, ctx) =
+      (n + 1, add (Declaration.map_type (Vars.liftn lift_by n) d) ctx)
+    in
+    let _, new_ctx = fold_outside fold_func ctx ~init:(1, empty) in
+    new_ctx
+
   let target_induction env sigma name (mind_d, mind_n) source_ind_ty =
     let one_d = Declarations.(mind_d.mind_packets.(mind_n)) in
     let sigma, target_ind_ty = otranslate_type env sigma source_ind_ty in
@@ -1420,29 +1424,24 @@ module InductionCatch = struct
           let final_body = mkApp (el_const, [|mkRel (predicate_index + nparams + 1); body|]) in
           sigma, final_body
         in
-        let index_list = List.init (nargs + 1) (fun i -> i + 1) in
-        let fold_left partial_body index =
-          let decl = Context.Rel.lookup index partial_fix_ctx in
-          let new_decl = Context.Rel.Declaration.map_type (fun d -> Vars.lift (index + 1) d) decl in
-          mkLambda_or_LetIn new_decl partial_body
-        in
-        sigma, List.fold_left fold_left predicate_body index_list
+        let new_partial_fix = lift_predicate_declarations (nargs + 2) partial_fix_ctx in
+        sigma, it_mkLambda_or_LetIn predicate_body new_partial_fix
       in
       let init_case_constr n =
         let specific_cons = Context.Rel.lookup (ncons + 1 - n) predicate_ctx in
         let specific_cons_ty = Context.Rel.Declaration.get_type specific_cons in
         let specific_cons_ty = Vars.lift (-n) specific_cons_ty in
         let case = case_catch_induction sigma specific_cons_ty in
-        let lifted_case = Vars.liftn (nargs + ncons + 3) 3 case in 
+        let lifted_case = Vars.liftn (nargs + ncons + 3) 3 case in
         let subst_case = Vars.subst1 (mkRel (nargs + ncons + 3 - n)) lifted_case in
         let lifted_subst_case = Vars.liftn 1 2 subst_case in
-        let final_subst_case = Vars.subst1 (mkRel (nargs + 2)) lifted_subst_case in 
+        let final_subst_case = Vars.subst1 (mkRel (nargs + 2)) lifted_subst_case in
         final_subst_case
       in
       let match_cases_branch = Array.init (ncons + 1) init_case_constr in
       let case_info_e = Inductiveops.make_case_info env.env_src (name, mind_n) LetPatternStyle in
       let match_body = EConstr.mkCase (case_info_e, predicate, (mkRel 1), match_cases_branch) in
-      let new_partial_fix_ctx = Context.Rel.map (fun d -> Vars.lift 1 d)  partial_fix_ctx in
+      let new_partial_fix_ctx = lift_predicate_declarations 1 partial_fix_ctx in
       let body = it_mkLambda_or_LetIn match_body new_partial_fix_ctx in
       sigma, body
     in
@@ -1469,7 +1468,7 @@ module InductionCatch = struct
 
     let _, (name_e, _) = get_ind env (name, mind_n) in
     let sigma, induction_pr_e = target_induction env sigma name_e (mind_d, mind_n) induction_pr in
-    let sigma, _ = Typing.type_of env.env_src sigma induction_pr_e in
+    let sigma, _ = Typing.type_of env.env_tgt sigma induction_pr_e in
     (sigma, induction_pr, induction_pr_e)
 
 end

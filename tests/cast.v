@@ -4,8 +4,30 @@ Inductive vec (A: Type): nat -> Type :=
 | vnil: vec A 0
 | vcons: forall n, vec A n -> A -> vec A (S n).
 
+Inductive plop: nat -> Type :=
+| plop1: plop 0.
+(*| plop2: forall n, plop n -> nat -> plop (S n).*)
 
-Effect Translate nat. Print nat_instanceᵉ.
+Fixpoint f n :=
+  match n with
+  | O => 0
+  | S m => S (S (f m))
+  end.
+
+Definition F :=
+  fun (A: Type) (m: nat) =>
+    fix f (_ _: nat) (l: list A) {struct l}: nat :=
+    match l with
+    | nil => 0
+    | cons _ ll => S (S (f 0 0 ll)) + m
+    end.
+
+
+Effect Translate nat.
+Effect Translate list.
+Effect Translate Nat.add.
+Effect Translate F.
+Effect Translate plop.
 Effect Translate vec.
 Print nat_instanceᵉ.
 Effect Translate bool.
