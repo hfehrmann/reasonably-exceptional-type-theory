@@ -5,8 +5,8 @@ Inductive vec (A: Type): nat -> Type :=
 | vcons: forall n, vec A n -> A -> vec A (S n).
 
 Inductive plop: nat -> Type :=
-| plop1: plop 0.
-(*| plop2: forall n, plop n -> nat -> plop (S n).*)
+| plop1: plop 0
+| plop2: forall n, plop n -> nat -> plop (S n).
 
 Fixpoint f n :=
   match n with
@@ -22,10 +22,10 @@ Definition F :=
     | cons _ ll => S (S (f 0 0 ll)) + m
     end.
 
-
 Effect Translate nat.
 Effect Translate list.
 Effect Translate Nat.add.
+Effect Translate f.
 Effect Translate F.
 Effect Translate plop.
 Effect Translate vec.

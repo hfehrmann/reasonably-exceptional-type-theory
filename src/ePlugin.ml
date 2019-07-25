@@ -2,7 +2,6 @@ open CErrors
 open Pp
 open Util
 open Names
-open Term
 open Decl_kinds
 open Libobject
 open Mod_subst
@@ -54,13 +53,10 @@ let translator : translator ref =
 
 type extension_type =
 | ExtEffect
-| ExtParam
 
 type extension =
 | ExtConstant of Constant.t * global_reference
 | ExtInductive of MutInd.t * MutInd.t
-| ExtParamInductive of MutInd.t * MutInd.t
-| ExtParamConstant of MutInd.t * global_reference
 
 type translator_obj =
 | ExtendEffect of extension_type * global_reference option * extension list
@@ -98,11 +94,6 @@ let extend_translator tr knd exn l =
     { accu with refs = extend_constant exn cst gr accu.refs }
   | ExtEffect, ExtInductive (mind, mind') ->
     { accu with inds = extend_inductive exn mind mind' accu.inds }
-  | ExtParam, ExtConstant (cst, gr) ->
-    { accu with prefs = extend_constant exn cst gr accu.prefs }
-  | ExtParam, ExtInductive (mind, mind') ->
-    { accu with pinds = extend_inductive exn mind mind' accu.pinds }
-  | _ -> accu
   in
   List.fold_left fold tr l
 
@@ -124,17 +115,6 @@ let subst_extension subst ext = match ext with
   let tmind' = subst_mind subst tmind in
   if smind' == smind && tmind' == tmind then ext
   else ExtInductive (smind', tmind')
-(** what !!! *)
-| ExtParamConstant (smind, gr) ->
-  let smind' = subst_mind subst smind in
-  let gr' = subst_global_reference subst gr in
-  if smind' == smind && gr' == gr then ext
-  else ExtParamConstant (smind', gr')
-| ExtParamInductive (smind, tmind) ->
-  let smind' = subst_mind subst smind in
-  let tmind' = subst_mind subst tmind in
-  if smind' == smind && tmind' == tmind then ext
-  else ExtParamInductive (smind', tmind')
 
 let subst_translator (subst, obj) = match obj with
 | ExtendEffect (knd, exn, l) ->
@@ -209,17 +189,7 @@ let translate_constant err translator cst ids =
   let cst_ = declare_constant id uctx body typ in
   [ExtConstant (cst, ConstRef cst_)]
 
-(** Fix potential mismatch between the generality of parametricity and effect
-    translations *)
-let instantiate_error env sigma err gen c_ = match err with
-| None -> (sigma, c_)
-| Some err ->
-  if gen then
-    let (sigma, err) = Evd.fresh_global env sigma err in
-    (sigma, mkApp (c_, [| err |]))
-  else (sigma, c_)
-
-let primitives_from_declaration env (ind: Names.mutual_inductive) =
+let primitives_from_declaration env (ind: Names.MutInd.t) =
   let open Declarations in
   let (mind, _) = Inductive.lookup_mind_specif env (ind, 0) in
   let (_, projs, _) = Option.get (Option.get mind.mind_record) in
@@ -250,7 +220,7 @@ let translate_inductive_gen f err translator (ind, _) =
 let one_ind_in_prop ind_arity =
   let open Declarations in
   match ind_arity with
-  | RegularArity ar -> is_prop_sort ar.mind_sort
+  | RegularArity ar -> Sorts.is_prop ar.mind_sort
   | TemplateArity _ -> false
 
 let typeclass_declaration err translator ind_names_decl ind_name param_ind =
@@ -297,7 +267,7 @@ let instantiate_parametric_modality err translator (name, n) ext =
   let iter id =
     let id_ind = Nameops.add_suffix id "_ind" in
     let reference = CAst.make @@ Misctypes.AN (CAst.make (Libnames.Ident id)) in
-    let scheme = Vernacexpr.InductionScheme (true, reference, InProp) in
+    let scheme = Vernacexpr.InductionScheme (true, reference, Sorts.InProp) in
     Indschemes.do_scheme [Some (CAst.make id_ind), scheme]
   in
   let mind_names = Entries.(List.map (fun i -> i.mind_entry_typename) mind_.mind_entry_inds) in
@@ -316,7 +286,7 @@ let instantiate_parametric_modality err translator (name, n) ext =
     ((succ i, translator), ext)
   in
   let ((_, translator), instances) =
-    List.fold_map fold_map (0, translator) (Array.to_list D.(mind.mind_packets))
+    List.fold_left_map fold_map (0, translator) (Array.to_list D.(mind.mind_packets))
   in
 
   (* Parametrict induction *)
@@ -349,7 +319,7 @@ let instantiate_parametric_modality err translator (name, n) ext =
   let catch_ind_e = EUtil.translate_name catch_name in
   let name_e = EUtil.translate_inductive_name name in
   let reference = CAst.make @@ Misctypes.AN (CAst.make (Libnames.Ident name_e)) in
-  let scheme = Vernacexpr.InductionScheme (true, reference, InType) in
+  let scheme = Vernacexpr.InductionScheme (true, reference, Sorts.InType) in
   let _ = Indschemes.do_scheme [Some (CAst.make catch_ind_e), scheme] in
   let mod_path = Global.current_modpath () in
   let kername = Names.KerName.make2 mod_path (Names.Label.of_id catch_ind_e) in
@@ -357,7 +327,7 @@ let instantiate_parametric_modality err translator (name, n) ext =
   let catch_ext = ExtConstant (catch_ind, ConstRef catch_ind_e_cst) in
   (* ********************* *)
 
-  ExtConstant (cst_ind, ConstRef cst_ind_e) :: (*catch_ext ::*) instances
+  ExtConstant (cst_ind, ConstRef cst_ind_e) :: catch_ext :: instances
 
 let try_instantiate_parametric_modality err translator (name, n) ext  =
   let module D = Declarations in
@@ -386,10 +356,6 @@ let msg_translate = function
     str " has been translated as " ++ Printer.pr_global dst ++ str ".")
   in
   prlist_with_sep fnl pr l
-| ExtParamInductive _ ->
-   str "Parametric inducitve extension"
-| ExtParamConstant _ ->
-   str "Parametric constant extension"
 
 let translate ?exn ?names gr =
   let ids = names in
@@ -423,7 +389,7 @@ let implement ?exn id typ =
   let (sigma, _) = Typing.type_of env sigma typ_ in
   let hook _ dst =
     (** Declare the original term as an axiom *)
-    let param = (None, (typ, Entries.Monomorphic_const_entry (Evd.evar_universe_context_set uctx)), None) in
+    let param = (None, (typ, Entries.Monomorphic_const_entry (UState.context_set uctx)), None) in
     let cb = Entries.ParameterEntry param in
     let cst = Declare.declare_constant id (cb, IsDefinition Definition) in
     (** Attach the axiom to the forcing implementation *)
@@ -439,7 +405,7 @@ let implement ?exn id typ =
 (** Error handling *)
 
 let pr_global = function
-| VarRef id -> str "Variable " ++ Nameops.pr_id id
+| VarRef id -> str "Variable " ++ Names.Id.print id
 | ConstRef cst -> str "Constant " ++ Constant.print cst
 | IndRef (ind, _) -> str "Inductive " ++ MutInd.print ind
 | ConstructRef ((ind, _), _) -> str "Inductive " ++ MutInd.print ind

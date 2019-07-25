@@ -200,7 +200,7 @@ let mk_default_primitive_record env sigma (ind, u) =
 
 let ind_in_prop mip =
   match mip.mind_arity with
-  | RegularArity ar -> is_prop_sort ar.mind_sort
+  | RegularArity ar -> Sorts.is_prop ar.mind_sort
   | TemplateArity _ -> false
 
 (* From Γ ⊢ M : A produce [M] s.t. ⟦Γ⟧ ⊢ [M] : ⟦A⟧. *)
@@ -209,7 +209,7 @@ let rec otranslate env sigma c = match EConstr.kind sigma c with
   (sigma, mkRel n)
 | Sort s ->
   let e = mkRel (Environ.nb_rel env.env_tgt) in
-  let is_prop = is_prop_sort (EConstr.ESorts.kind sigma s) in
+  let is_prop = Sorts.is_prop (EConstr.ESorts.kind sigma s) in
   let sort_e = if is_prop then prop_e else type_e in
   let (sigma, t) = fresh_global env sigma sort_e in
   sigma, mkApp (t, [|e|])
@@ -220,7 +220,7 @@ let rec otranslate env sigma c = match EConstr.kind sigma c with
   (sigma, r)
 | Prod (na, t, u) ->
   let (sigma,ty) = Typing.type_of env.env_src sigma c in
-  let is_prop = isSort sigma ty && is_prop_sort (ESorts.kind sigma (destSort sigma ty)) in
+  let is_prop = isSort sigma ty && Sorts.is_prop (ESorts.kind sigma (destSort sigma ty)) in
   if is_prop then
     let (sigma, ty) = otranslate_type env sigma c in
     (sigma, ty)
@@ -277,11 +277,11 @@ let rec otranslate env sigma c = match EConstr.kind sigma c with
     let module S = ESorts in
     if isSort sigma r_end then
       let sort = S.kind sigma (destSort sigma r_end) in
-      ( if is_prop_sort sort && not match_on_prop then
+      ( if Sorts.is_prop sort && not match_on_prop then
           raise MatchEliminationNotSupportedOnTranslation )
     else
       let r_sort = Typing.e_sort_of p_env_src (ref sigma) r_end in
-      if is_prop_sort r_sort && not match_on_prop then
+      if Sorts.is_prop r_sort && not match_on_prop then
         raise MatchEliminationNotSupportedOnTranslation
   in
   let ci_translator = if match_on_prop then translate_prop_case_info else translate_case_info in
@@ -290,7 +290,7 @@ let rec otranslate env sigma c = match EConstr.kind sigma c with
   let (sigma, env', ctxe) = otranslate_context env sigma ctx in
   let (sigma, ce) = otranslate env sigma c in
   let map sigma p = otranslate env sigma p in
-  let (sigma, pe) = Array.fold_map map sigma p in
+  let (sigma, pe) = Array.fold_left_map map sigma p in
   let nE = Environ.nb_rel env'.env_tgt in
   (** The default constructor has as arguments the indices of the block plus an error *)
   let default_ctx = LocalAssum (Name name_err, mkRel (nE - 1)) :: List.tl ctxe in
@@ -339,7 +339,7 @@ and otranslate_recdef env sigma (nas, tys, bodies) =
   in
   let (env, sigma, tyse) = Array.fold_left2_i fold (env, sigma, []) nas tys in
   let tyse = Array.rev_of_list tyse in
-  let (sigma, bodiese) = Array.fold_map (fun sigma c -> otranslate env sigma c) sigma bodies in
+  let (sigma, bodiese) = Array.fold_left_map (fun sigma c -> otranslate env sigma c) sigma bodies in
   (sigma, (nas, tyse, bodiese))
 
 (* Special handling of types not to clutter the translation.
@@ -348,7 +348,7 @@ and otranslate_type env sigma t = match EConstr.kind sigma t with
 | App (c, args) when isInd sigma c ->
   let (ind, _) = destInd sigma c in
   let fold sigma c = otranslate env sigma c in
-  let (sigma, args) = Array.fold_map fold sigma args in
+  let (sigma, args) = Array.fold_left_map fold sigma args in
   let (sigma, c) = apply_global env sigma (IndRef ind) in
   (sigma, mkApp (c, args))
 | Ind (ind, _) ->
@@ -360,7 +360,7 @@ and otranslate_type env sigma t = match EConstr.kind sigma t with
   let (sigma, ue) = otranslate_type env sigma u in
   (sigma, mkProd (na, te, ue))
 | _ ->
-  let is_prop = is_prop_sort (Typing.e_sort_of env.env_src (ref sigma) t) in
+  let is_prop = Sorts.is_prop (Typing.e_sort_of env.env_src (ref sigma) t) in
   let (sigma, t_) = otranslate env sigma t in
   let (sigma, t_) = element env sigma is_prop t_ in
   (sigma, t_)
@@ -372,7 +372,7 @@ and otranslate_type_and_err env sigma t = match EConstr.kind sigma t with
 | App (c, args) when isInd sigma c ->
   let (ind, u) = destInd sigma c in
   let fold sigma c = otranslate env sigma c in
-  let (sigma, args) = Array.fold_map fold sigma args in
+  let (sigma, args) = Array.fold_left_map fold sigma args in
   let (sigma, c) = apply_global env sigma (IndRef ind) in
   let (sigma, ind_def) = mk_default_ind env sigma (ind, u) in
   let ind_def = mkApp (ind_def, args) in
@@ -390,7 +390,7 @@ and otranslate_type_and_err env sigma t = match EConstr.kind sigma t with
   let prod_def = mkLambda (Name name_err, e, mkLambda (na, Vars.lift 1 te, def)) in
   (sigma, mkProd (na, te, ue), prod_def)
 | _ ->
-  let is_prop = is_prop_sort (Typing.e_sort_of env.env_src (ref sigma) t) in
+  let is_prop = Sorts.is_prop (Typing.e_sort_of env.env_src (ref sigma) t) in
   let (sigma, t_) = otranslate env sigma t in
   let (sigma, err) = fresh_global env sigma err_e in
   let e = mkRel (Environ.nb_rel env.env_tgt) in
@@ -404,7 +404,7 @@ and otranslate_ind env sigma (ind, u) args =
   let (mib, mip) = Inductive.lookup_mind_specif env.env_src ind in
   let is_prop = ind_in_prop mip in
   let fold sigma c = otranslate env sigma c in
-  let (sigma, args) = Array.fold_map fold sigma args in
+  let (sigma, args) = Array.fold_left_map fold sigma args in
   if is_prop then
     let (sigma, c) = apply_global env sigma (IndRef ind) in
     (sigma, if Array.length args == 0 then c else mkApp (c, args))
@@ -578,12 +578,12 @@ let translate_constructors env sigma mind0 mind ind0 ind =
     let te = abstract_mind sigma mutind nblock (Environ.nb_rel env.env_tgt) te in
     (sigma, te)
   in
-  List.fold_map map sigma ind.mind_entry_lc
+  List.fold_left_map map sigma ind.mind_entry_lc
 
 let translate_inductive_body env sigma mind0 mind n ind0 ind =
   let typename = EUtil.translate_inductive_name ind.mind_entry_typename in
   let is_prop = match ind0.mind_arity with
-    | RegularArity ar -> is_prop_sort ar.mind_sort
+    | RegularArity ar -> Sorts.is_prop ar.mind_sort
     | TemplateArity _ -> false
   in
   let constructors = List.map EUtil.translate_name ind.mind_entry_consnames in
@@ -655,7 +655,7 @@ let translate_inductive err translator env _ mind0 (mind : Entries.mutual_induct
       let inds = List.combine (Array.to_list mind0.mind_packets) mind.mind_entry_inds in
       let inds = List.mapi (fun i (ind, ind0) -> (i, ind, ind0)) inds in
       let map sigma (n, ind0, ind) = translate_inductive_body env sigma mind0 mind n ind0 ind in
-      let sigma, inds = List.fold_map map sigma inds in
+      let sigma, inds = List.fold_left_map map sigma inds in
       (sigma, inds)
   in
   let sigma, inds, params = EUtil.retype_inductive env.env_tgt sigma (EConstr.rel_context env.env_tgt) inds in
@@ -680,7 +680,7 @@ let param_lift param_offset c =
   let fold accum i =
     let current = accum + i in (current, mkRel current)
   in
-  let total,offsets = List.fold_map fold 0 param_offset in
+  let total,offsets = List.fold_left_map fold 0 param_offset in
   Vars.substl offsets (Vars.liftn n (n + 1) c)
 
 let param_top_decls env is_ind_prop =
@@ -815,7 +815,7 @@ let param_constr err env sigma gen (block, block_e, n) mind_d mind_e one_d one_e
     let te = Vars.subst1 constr te in
     ((succ c, sigma), te)
   in
-  let ((_, sigma), lc) = List.fold_map map (1,sigma) one_e.mind_entry_lc in
+  let ((_, sigma), lc) = List.fold_left_map map (1,sigma) one_e.mind_entry_lc in
   (sigma, lc)
 
 let param_inductive err env sigma (block, block_e, n as total_ind) mind_d mind_e one_d one_e =
@@ -868,7 +868,7 @@ let param_mutual_inductive err translator env (block, block_e) mind_d mind_e =
   let map sigma (n, ind_d, ind_e) =
     param_inductive err env sigma (block, block_e, n) mind_d mind_e ind_d ind_e
   in
-  let (sigma, param_inds) = List.fold_map map sigma inds in
+  let (sigma, param_inds) = List.fold_left_map map sigma inds in
 
   let env_context = EConstr.rel_context env.env_tgt in
   let sigma, inds, params = EUtil.retype_inductive env.env_tgt sigma env_context param_inds in
@@ -1156,7 +1156,7 @@ let parametric_induction err translator env name mind_d =
     let (sigma, (ind, u)) = Evd.fresh_inductive_instance env.env_src sigma (name_param, n) in
     (sigma, mkIndU (ind, EInstance.make u))
   in
-  let sigma, ind_subst = List.fold_map fold_map sigma mind_param in
+  let sigma, ind_subst = List.fold_left_map fold_map sigma mind_param in
 
   let ind_param_induction = Nameops.add_suffix one_d.mind_typename "_param_ind" in
   let sigma, (ind_param_induction, u) =
@@ -1462,7 +1462,6 @@ module InductionCatch = struct
   let catch err translator env name (mind_d, mind_n) =
     let sigma = Evd.from_env env in
     let (sigma, env) = make_context err translator env sigma in
-    let one_d = mind_d.mind_packets.(mind_n) in
     let sigma, induction_pr = source_induction sigma env name (mind_d, mind_n) in
     let sigma, _ = Typing.type_of env.env_src sigma induction_pr in
 
