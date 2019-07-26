@@ -3,6 +3,7 @@
 
 src/eUtil.ml
 src/eUtil.mli
+src/eConstants.ml
 src/eTranslate.ml
 src/eTranslate.mli
 src/ePlugin.ml

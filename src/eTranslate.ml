@@ -11,6 +11,8 @@ open Declarations
 open Globnames
 open Pp
 
+open EConstants
+
 type effect = global_reference option
 
 exception MissingGlobal of effect * global_reference
@@ -33,6 +35,36 @@ type translator = {
   paramrefs : global_reference global_translation Mindmap.t;
   paraminds : MutInd.t global_translation Mindmap.t;
 }
+
+let empty_translator =
+  let refss = [
+      (param_cst, param_cst_e);
+      (tm_exception, tm_exception_e);
+      (tm_raise, tm_raise_e)
+    ]
+  in
+  let map acc (s,t) =
+    Cmap.add s (GlobGen (ConstRef t)) acc
+  in
+  let refss = List.fold_left map Cmap.empty refss in
+  let inds =
+    Mindmap.add
+      param_mod
+      (GlobGen param_mod_e)
+      (Mindmap.add tm_False (GlobGen tm_False_e) Mindmap.empty)
+  in
+  let prefs = Cmap.empty in
+  let pinds = Mindmap.empty in
+  {
+    refs = refss;
+    inds = inds;
+    prefs = prefs;
+    pinds = pinds;
+    wrefs = Cmap.empty;
+    winds = Mindmap.empty;
+    paramrefs = Mindmap.empty;
+    paraminds = Mindmap.empty;
+  }
 
 type context = {
   error : global_reference option;
@@ -58,41 +90,6 @@ let lift_rel_context n ctx =
     d :: accu
   in
   List.fold_right_i fold 1 ctx []
-
-(** Coq-defined values *)
-
-let effect_path =
-  DirPath.make (List.map Id.of_string ["Effects"; "Weakly"])
-
-let make_kn name =
-  KerName.make2 (MPfile effect_path) (Label.make name)
-
-let prop_e = ConstRef (Constant.make1 (make_kn "Propᵉ"))
-let type_e = ConstRef (Constant.make1 (make_kn "Typeᵉ"))
-let el_e = ConstRef (Constant.make1 (make_kn "El"))
-let prod_e = ConstRef (Constant.make1 (make_kn "Prodᵉ"))
-let err_e = ConstRef (Constant.make1 (make_kn "Err"))
-let typeval_e = ConstructRef ((MutInd.make1 (make_kn "type"), 0), 1)
-
-let param_mod = MutInd.make1 (make_kn "ParamMod")
-let param_mod_e = MutInd.make1 (make_kn "ParamModᵉ")
-
-let param_cst = Constant.make1 (make_kn "param")
-let param_cst_e = Constant.make1 (make_kn "paramᵉ")
-
-let tm_exception = Constant.make1 (make_kn "Exception")
-let tm_exception_e = Constant.make1 (make_kn "Exceptionᵉ")
-
-let tm_raise = Constant.make1 (make_kn "raise")
-let tm_raise_e = Constant.make1 (make_kn "raiseᵉ")
-
-
-let tm_False, _ = Globnames.destIndRef (Lazy.force Coqlib.coq_False_ref)
-let tm_False_e = MutInd.make1 (make_kn "Falseᵉ")
-
-
-let name_errtype = Id.of_string "E"
-let name_err = Id.of_string "e"
 
 (** Handling of globals *)
 

@@ -17,39 +17,8 @@ let translate_name id =
 
 type translator = ETranslate.translator
 
-let empty_translator =
-  let open ETranslate in
-  let refss = [
-      (param_cst, param_cst_e);
-      (tm_exception, tm_exception_e);
-      (tm_raise, tm_raise_e)
-    ]
-  in
-  let map acc (s,t) =
-    Cmap.add s (GlobGen (ConstRef t)) acc
-  in
-  let refss = List.fold_left map Cmap.empty refss in
-  let inds =
-    Mindmap.add
-      param_mod
-      (GlobGen param_mod_e)
-      (Mindmap.add tm_False (GlobGen tm_False_e) Mindmap.empty)
-  in
-  let prefs = Cmap.empty in
-  let pinds = Mindmap.empty in
-  {
-    ETranslate.refs = refss;
-    inds = inds;
-    prefs = prefs;
-    pinds = pinds;
-    wrefs = Cmap.empty;
-    winds = Mindmap.empty;
-    paramrefs = Mindmap.empty;
-    paraminds = Mindmap.empty;
-  }
-
 let translator : translator ref =
-  Summary.ref ~name:"Effect Global Table" empty_translator
+  Summary.ref ~name:"Effect Global Table" ETranslate.empty_translator
 
 type extension_type =
 | ExtEffect

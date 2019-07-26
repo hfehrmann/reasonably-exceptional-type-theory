@@ -27,16 +27,8 @@ type translator = {
   paramrefs : global_reference global_translation Mindmap.t;
   paraminds : MutInd.t global_translation Mindmap.t;
 }
-val param_mod:   Names.MutInd.t
-val param_mod_e: Names.MutInd.t
-val param_cst:   Names.Constant.t
-val param_cst_e: Names.Constant.t
-val tm_exception: Names.Constant.t
-val tm_exception_e: Names.Constant.t
-val tm_raise: Names.Constant.t
-val tm_raise_e: Names.Constant.t
-val tm_False: Names.MutInd.t
-val tm_False_e: Names.MutInd.t
+
+val empty_translator: translator
 
 val translate :
   effect -> translator -> Environ.env -> Evd.evar_map -> EConstr.t -> Evd.evar_map * EConstr.t
