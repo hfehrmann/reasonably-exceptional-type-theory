@@ -683,17 +683,6 @@ let param_lift param_offset c =
 let param_top_decls env is_ind_prop =
   List.firstn (if is_ind_prop then 2 else 1) (EConstr.rel_context env.env_tgt)
 
-let rec term_finish_in_ind sigma t ind_name = match EConstr.kind sigma t with
-  | App (t, _) -> isInd sigma t && MutInd.equal (fst (fst (destInd sigma t))) ind_name
-  | Ind (ind,_) -> MutInd.equal (fst ind) ind_name
-  | Prod (_, _, body) -> term_finish_in_ind sigma body ind_name
-  | _ -> false
-
-let rec term_finish_in_ind_exact sigma t ind_name n = match EConstr.kind sigma t with
-  | App (t, _) -> isInd sigma t && MutInd.equal (fst (fst (destInd sigma t))) ind_name
-  | Ind (ind,_) -> MutInd.equal (fst ind) ind_name && snd ind == n
-  | Prod (_, _, body) -> term_finish_in_ind_exact sigma body ind_name n
-  | _ -> false
 
 let param_env_accum_up_to param_env n =
      List.fold_left (fun a acc -> a + acc) 0 (List.firstn n param_env)
@@ -713,7 +702,7 @@ let rec otranslate_param env param_env sigma (ind, ind_e) c = match EConstr.kind
 | LetIn (na, c, t, u) ->
    let (sigma, c_) = otranslate_param env param_env sigma (ind, ind_e) c in
    let (sigma, t_) = otranslate_param_type env param_env sigma (ind, ind_e) t in
-   let is_ind_param = term_finish_in_ind sigma t ind in
+   let is_ind_param = EUtil.term_finish_in_ind sigma t ind in
    let (sigma, ctw, param_env) =
      if is_ind_param then (sigma, (None, None), 1 :: param_env)
      else let (s, cw) = otranslate_param env param_env sigma (ind, ind_e) c in
@@ -767,7 +756,7 @@ and otranslate_param_type env param_env sigma (ind, ind_e) c = match EConstr.kin
 | Prod (na,t,u) ->
    let (sigma, t_) = otranslate_type env sigma t in
    let t_ = param_lift param_env t_ in
-   let is_ind_param = term_finish_in_ind sigma t ind in
+   let is_ind_param = EUtil.term_finish_in_ind sigma t ind in
    let nenv = push_assum na (t, t_) env in
    let (sigma, nenv, param_env) =
      if not is_ind_param then (sigma, nenv, 1 :: param_env)
@@ -986,7 +975,7 @@ module SourceInduction = struct
     | Ind (name, _) ->
        mkApp (mkRel 2, [| mkRel 1 |])
     | Prod (na, t, b) ->
-       let end_in_ind = term_finish_in_ind_exact sigma t ind n_ind in
+       let end_in_ind = EUtil.term_finish_in_ind_exact sigma t ind n_ind in
        let rest = induction_generator sigma params_number b ind n_ind in
        let body =
          if end_in_ind then
@@ -1098,7 +1087,7 @@ match EConstr.kind sigma constr_ty with
 | (App _ | Ind _) ->
    mkRel 1
 | Prod (na, t, b) ->
-   let end_in_ind = term_finish_in_ind_exact sigma t ind n_ind in
+   let end_in_ind = EUtil.term_finish_in_ind_exact sigma t ind n_ind in
    let bp = induction_predicate_generator sigma params_number b ind n_ind dummy in
    let body =
      if end_in_ind then
@@ -1224,7 +1213,7 @@ module InductionCatch = struct
            when (Names.MutInd.equal ind ind_name) && (ind_constructor == n_ind) ->
        mkApp (mkRel 2, [| mkRel 1 |])
     | Prod (na, t, b) ->
-       let end_in_ind = term_finish_in_ind_exact sigma t ind n_ind in
+       let end_in_ind = EUtil.term_finish_in_ind_exact sigma t ind n_ind in
        let rest = inductive_predicate_structure_gen sigma params_number b ind n_ind in
        let body =
          if end_in_ind then

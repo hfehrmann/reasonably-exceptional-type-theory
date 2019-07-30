@@ -239,7 +239,7 @@ let process_inductive mib =
     mind_entry_universes = ind_univs
   }
 
-let primitive_record mind = 
+let primitive_record mind =
   match mind.mind_record with
   | Some (Some _) -> true
   | _ -> false
@@ -263,3 +263,19 @@ let translate_param_name id =
 let translate_instance_name id =
   let id = Id.to_string id in
   Id.of_string (id ^ "_instance")
+
+let rec term_finish_in_ind sigma t ind_name =
+  let open EConstr in
+  match kind sigma t with
+  | App (t, _) -> isInd sigma t && MutInd.equal (fst (fst (destInd sigma t))) ind_name
+  | Ind (ind,_) -> MutInd.equal (fst ind) ind_name
+  | Prod (_, _, body) -> term_finish_in_ind sigma body ind_name
+  | _ -> false
+
+let rec term_finish_in_ind_exact sigma t ind_name n =
+  let open EConstr in
+  match kind sigma t with
+  | App (t, _) -> EConstr.isInd sigma t && MutInd.equal (fst (fst (destInd sigma t))) ind_name
+  | Ind (ind,_) -> MutInd.equal (fst ind) ind_name && snd ind == n
+  | Prod (_, _, body) -> term_finish_in_ind_exact sigma body ind_name n
+  | _ -> false
