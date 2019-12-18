@@ -285,15 +285,10 @@ let instantiate_parametric_modality err translator (name, n) ext =
   let uctx = UState.context_set (Evd.evar_universe_context sigma) in
   let catch_ind = declare_axiom catch_name uctx (EConstr.to_constr sigma catch_induction) in
 
-  let catch_ind_e = EUtil.translate_name catch_name in
-  let name_e = EUtil.translate_inductive_name name in
-  let reference = CAst.make @@ Misctypes.AN (CAst.make (Libnames.Ident name_e)) in
-  let scheme = Vernacexpr.InductionScheme (true, reference, Sorts.InType) in
-  let _ = Indschemes.do_scheme [Some (CAst.make catch_ind_e), scheme] in
-  let mod_path = Global.current_modpath () in
-  let kername = Names.KerName.make2 mod_path (Names.Label.of_id catch_ind_e) in
-  let catch_ind_e_cst = Global.constant_of_delta_kn kername in
-  let catch_ext = ExtConstant (catch_ind, ConstRef catch_ind_e_cst) in
+  let catch_name_e = EUtil.translate_name catch_name in
+  let catch_induction_e = EConstr.to_constr sigma catch_induction_e in
+  let catch_ind_e = declare_constant_wo_ty catch_name_e uctx catch_induction_e in
+  let catch_ext = ExtConstant (catch_ind, ConstRef catch_ind_e) in
   (* ********************* *)
 
   ExtConstant (cst_ind, ConstRef cst_ind_e) :: catch_ext :: instances
