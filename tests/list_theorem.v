@@ -1,8 +1,45 @@
 Require Import Weakly.Effects.
 
+Inductive list (A: Type): Type :=
+| nil: list A
+| cons: A -> list A -> list A.
+
+Notation "x :: l" := (cons x l).
+
+Inductive le: nat -> nat -> Prop :=
+| le_n: forall n, le n n
+| le_S: forall n m, le n m -> le n (S m).
+
+Notation "n < m" := (le (S n) m).
+
+Effect List Translate nat list list_rect.
+Effect List Translate True False not le eq.
+
+Definition length (A: Type) (l: list A): nat :=
+  list_catch A (fun _ => nat) 0 (fun _ l n => S n) (fun _ => 0) l.
+
+Definition head (A: Type) (l: list A) e: A :=
+  list_rect A (fun _ => A) (raise _ e) (fun x _ _ => x) l.
+
+Definition tail (A: Type) (l: list A) e: list A :=
+  list_rect A (fun _ => list A) (raise _ e) (fun _ l _ => l) l.
+
+Effect List Translate length head tail.
+
+Theorem nil_not_raise: forall A e, nil A <> raise (list A) e.
+Proof.
+  intros A e H.
+  assert
+    (forall l',
+        nil A = l' ->
+        (catch_list _ (fun _ => Prop) True (fun _ _ _ => False) (fun _ => False) l')).
+  - intros l' He. cbn.
+
+
+
 Effect List Translate nat list.
 
-Definition list (A:Set) := list A.  
+Definition list (A:Set) := list A.
 
 Effect List Translate list.
 
