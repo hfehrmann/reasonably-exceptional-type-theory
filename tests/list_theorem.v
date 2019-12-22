@@ -7,36 +7,123 @@ Inductive list (A: Type): Type :=
 Notation "x :: l" := (cons x l).
 
 Inductive le: nat -> nat -> Prop :=
-| le_n: forall n, le n n
-| le_S: forall n m, le n m -> le n (S m).
+| le_O: le 0 0
+| le_O_S: forall n, le 0 (S n)
+| le_S: forall n m, le n m -> le (S n) (S m).
 
-Notation "n < m" := (le (S n) m).
+Infix "<=" := le.
+
+Definition lt n m := S n <= m.
+
+Infix "<" := lt.
+
+Definition gt (n m:nat) := m < n.
+
+Infix ">" := gt.
 
 Effect List Translate nat list list_rect.
-Effect List Translate True False not le eq.
+Effect List Translate True False not le lt eq.
 
-Definition length (A: Type) (l: list A): nat :=
-  list_catch A (fun _ => nat) 0 (fun _ l n => S n) (fun _ => 0) l.
+Effect Definition catch_list_nil:
+  forall A P Pnil Pcons Praise,
+    catch_list A P Pnil Pcons Praise (nil A) = Pnil.
+Proof.
+  reflexivity.
+Defined.
 
-Definition head (A: Type) (l: list A) e: A :=
+Effect Definition catch_nat_O:
+  forall P PO PS Praise,
+    catch_nat P PO PS Praise O = PO.
+Proof.
+  reflexivity.
+Defined.
+
+Effect Definition catch_nat_S:
+  forall P PO PS Praise n,
+    catch_nat P PO PS Praise (S n) = PS n (catch_nat P PO PS Praise n).
+Proof.
+  reflexivity.
+Defined.
+
+Effect Definition catch_nat_raise:
+  forall P PO PS Praise e,
+    catch_nat P PO PS Praise (raise _ e) = Praise e.
+Proof.
+  reflexivity.
+Defined.
+
+Effect Definition catch_list_cons:
+  forall A P Pnil Pcons Praise a l,
+    catch_list A P Pnil Pcons Praise (cons A a l) = Pcons a l (catch_list A P Pnil Pcons Praise l).
+Proof.
+  reflexivity.
+Defined.
+
+Effect Definition catch_list_raise:
+  forall A P Pnil Pcons Praise e,
+    catch_list A P Pnil Pcons Praise (raise _ e) = Praise e.
+Proof.
+  reflexivity.
+Defined.
+
+Definition length {A: Type} (l: list A): nat :=
+  list_rect A (fun _ => nat) 0 (fun _ l n => S n) l.
+
+Definition head {A: Type} (l: list A) e: A :=
   list_rect A (fun _ => A) (raise _ e) (fun x _ _ => x) l.
 
-Definition tail (A: Type) (l: list A) e: list A :=
+Definition tail {A: Type} (l: list A) e: list A :=
   list_rect A (fun _ => list A) (raise _ e) (fun _ l _ => l) l.
 
 Effect List Translate length head tail.
 
 Theorem nil_not_raise: forall A e, nil A <> raise (list A) e.
 Proof.
-  intros A e H.
+  intros A e.
   assert
-    (forall l',
+    (H: forall l',
         nil A = l' ->
-        (catch_list _ (fun _ => Prop) True (fun _ _ _ => False) (fun _ => False) l')).
-  - intros l' He. cbn.
+        (catch_list _ (fun _ => Prop) True (fun _ _ _ => True) (fun _ => False) l')).
+  - intros l' Heq. destruct Heq. rewrite catch_list_nil. exact I.
+  - intros Heq. specialize (H (raise _ e) Heq). rewrite catch_list_raise in H. exact H.
+Defined.
+
+Set Printing Universes.
+
+Theorem raise_not_leq: forall n e, n <= raise _ e -> False.
+Proof.
+  intros n e.
+  assert (
+      H: forall n',
+        n <= n' ->
+        catch_nat (fun _ => Prop) True (fun _ _ => True) (fun _ => False) n'
+    ).
+  - intros n' Hle. induction Hle.
+    + rewrite catch_nat_O. exact I.
+    + rewrite catch_nat_S. exact I.
+    + rewrite catch_nat_S. exact I.
+  - intros Hle. specialize (H (raise _ e) Hle). rewrite catch_nat_raise in H.
+
+Theorem tail_not_empty:
+  forall A e (l: list A),
+    length l > 0 -> tail l <> raise _ e.
+Proof.
+  intros A e l Hl.
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+  
 Effect List Translate nat list.
 
 Definition list (A:Set) := list A.
