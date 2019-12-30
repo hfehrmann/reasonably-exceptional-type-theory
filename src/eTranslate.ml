@@ -39,6 +39,7 @@ type translator = {
 let empty_translator =
   let refss = [
       (param_cst, param_cst_e);
+      (param_correct_cst, param_correct_cst_e);
       (tm_exception, tm_exception_e);
       (tm_raise, tm_raise_e)
     ]
