@@ -33,22 +33,6 @@ Definition Prodᵉ@{i j k l} (E : Type@{i}) (A : Type@{j})
   (B : A -> type@{i k} E) : type@{i l} E :=
   TypeVal E (forall x : A, El (B x)) (fun e x => Err (B x) e).
 
-(** Special handling of the Prop sort *)
-
-Cumulative Inductive prop@{i} (E : Type@{i}) : Type :=
-| pTypeVal : forall (A : Prop), (E -> A) -> prop E
-| pTypeErr : E -> prop E.
-
-(*
-Definition Propᵉ@{i k} (E : Type@{i}) := TypeVal@{i k} E (prop E) (pTypeErr E).
-*)
-
-Definition pEl@{i} {E : Type@{i}} (A : prop E) : Prop:=
-match A with
-| pTypeVal _ A _ => A
-| pTypeErr _ e => True
-end.
-
 Axiom Exception: Type.
 Definition Exceptionᵉ (E: Type): type E := TypeVal E E (fun e => e).
 Axiom raise: forall (A: Type), Exception -> A.
