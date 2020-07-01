@@ -5,6 +5,11 @@ Inductive inductive_with_prop (A: Prop): Type :=
 
 Effect Translate inductive_with_prop.
 
+Inductive index_test (A: Type): A -> Type :=
+| cons_index_tsst: forall a, index_test A a.
+
+Effect Translate index_test.
+
 Inductive vec (A: Type): nat -> Type :=
 | vnil: vec A 0
 | vcons: forall n, vec A n -> A -> vec A (S n).
@@ -34,7 +39,6 @@ Effect Translate f.
 Effect Translate F.
 Effect Translate plop.
 Effect Translate vec.
-Print nat_instanceᵉ.
 Effect Translate bool.
 Effect Translate False.
 

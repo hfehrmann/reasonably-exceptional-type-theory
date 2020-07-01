@@ -1298,7 +1298,12 @@ module InductionCatch = struct
     let predicates_ctx = List.map (fun i -> Rel.Declaration.LocalAssum (Anonymous, i)) pred_map in
 
     let n_predicates = List.length predicates_ctx in
-    let lift_arity_ctx = Rel.map (fun i -> Vars.lift (n_predicates + 1) i) arity_ctx in
+
+    (*
+       It must add 2 to consider the new exceptional branch plus the predicate which
+       are now in context
+     *)
+    let lift_arity_ctx = Rel.map (fun i -> Vars.lift (n_predicates + 2) i) arity_ctx in
 
     let param_inds = List.init nparams (fun n -> mkRel (n_predicates + nindices + n + 3)) in
     let param_inds = List.rev param_inds in
@@ -1311,6 +1316,8 @@ module InductionCatch = struct
     in
     let ctxt = List.fold_left (fun acc d -> Rel.add d acc) ctxt predicates_ctx in
     let sigma, exc_case =
+      (* The below function assumes that the predicates is in context, hence the lift *)
+      let arity_ctx = Rel.map (fun i -> Vars.lift 1 i) arity_ctx in
       case_for_exceptional_constructor sigma env (name, mind_n) nparams arity_ctx
     in
     let lifted_exc_case = Vars.lift (Array.length one_d.mind_user_lc) exc_case in
