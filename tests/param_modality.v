@@ -1,6 +1,4 @@
-Require Import Weakly.Effects.
-
-
+Require Import Effects.Exception.
 
 (** Here we are going to give a detailed explenation of how the new 
     exceptional translation works. *)

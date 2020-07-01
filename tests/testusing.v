@@ -1,8 +1,5 @@
-Require Import Weakly.Effects.
+Require Import Effects.Exception.
 
-Inductive foo (A : Type) (x : A) (y := x) (y : A) := Foo.
-
-Effect Translate foo using unit.
 Effect Translate eq using unit.
 
 Effect Translate eq_rect using unit.

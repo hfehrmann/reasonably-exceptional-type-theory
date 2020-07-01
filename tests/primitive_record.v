@@ -1,5 +1,4 @@
-
-Require Import Weakly.Effects.
+Require Import Effects.Exception.
 
 Effect List Translate eq nat bool.
 Parametricity List Translate eq nat bool.
