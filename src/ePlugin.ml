@@ -299,7 +299,13 @@ let try_instantiate_parametric_modality err translator (name, n) ext  =
   let (mind, _ as specif) = Inductive.lookup_mind_specif env (name, 0) in
   let arity_mind = Array.map (fun ind -> D.(ind.mind_arity) ) D.(mind.mind_packets) in
 
-  if Array.exists (fun i -> one_ind_in_prop i) arity_mind then []
+  let has_record =
+    Array.fold_left
+      (fun r i -> r && Inductive.is_primitive_record (mind, i))
+      false
+      Declarations.(mind.mind_packets)
+  in
+  if Array.exists (fun i -> one_ind_in_prop i) arity_mind || has_record then []
   else instantiate_parametric_modality err translator (name, n) ext
 
 let translate_inductive err translator ind =
