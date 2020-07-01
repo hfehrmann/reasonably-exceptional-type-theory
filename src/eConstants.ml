@@ -2,7 +2,7 @@ open Util
 open Names
 
 let effect_path =
-  DirPath.make (List.map Id.of_string ["Effects"; "Weakly"])
+  DirPath.make (List.map Id.of_string ["Exception"; "Effects"])
 
 let make_kn name =
   KerName.make2 (MPfile effect_path) (Label.make name)

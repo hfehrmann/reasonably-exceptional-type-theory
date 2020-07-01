@@ -1,4 +1,4 @@
-Require Import Weakly.Effects.
+Require Import Effects.Exception.
 
 Inductive nat@{i}: Type@{i} :=
 | O: nat
