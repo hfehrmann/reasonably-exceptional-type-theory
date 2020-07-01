@@ -281,7 +281,7 @@ let instantiate_parametric_modality err translator (name, n) ext =
   in
   let one_ind = Declarations.(mind.mind_packets.(0)) in
   let name = Declarations.(one_ind.mind_typename) in
-  let catch_name = Nameops.add_prefix "catch_" name in
+  let catch_name = Nameops.add_suffix name "_catch" in
   let uctx = UState.context_set (Evd.evar_universe_context sigma) in
   let catch_ind = declare_axiom catch_name uctx (EConstr.to_constr sigma catch_induction) in
 

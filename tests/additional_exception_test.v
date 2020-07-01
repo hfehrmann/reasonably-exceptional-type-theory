@@ -58,7 +58,7 @@ Effect Translate test.
 Print test_rect.
 Effect Translate test_rect.
 Print test_rectᵉ.
-Print catch_testᵉ.
+Print test_catchᵉ.
 Print vec_ind_paramᵉ.
 
 Inductive my_sum (A B : Prop) : Type :=  my_inl : A -> my_sum A B | my_inr : B -> my_sum A B.

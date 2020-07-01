@@ -37,7 +37,7 @@ Effect List Translate True and not le lt gt eq.
 Effect List Translate list_rect le_ind eq_ind.
 Scheme listᵒ_ind := Induction for listᵒ Sort Prop.
 
-Effect Definition catch_list_prop:
+Effect Definition list_catch_prop:
   forall (A : Type) (P : list A -> Prop),
     P nil ->
     (forall (H : A) (H0 : list A), P H0 -> P (H :: H0)) ->
@@ -51,44 +51,44 @@ Defined.
 Effect List Translate eq_sym eq_ind_r.
 
 (** Propositional equalities *)
-Effect Definition catch_nat_O:
+Effect Definition nat_catch_O:
   forall P PO PS Praise,
-    catch_nat P PO PS Praise O = PO.
+    nat_catch P PO PS Praise O = PO.
 Proof.
   reflexivity.
 Defined.
 
-Effect Definition catch_nat_S:
+Effect Definition nat_catch_S:
   forall P PO PS Praise n,
-    catch_nat P PO PS Praise (S n) = PS n (catch_nat P PO PS Praise n).
+    nat_catch P PO PS Praise (S n) = PS n (nat_catch P PO PS Praise n).
 Proof.
   reflexivity.
 Defined.
 
-Effect Definition catch_nat_raise:
+Effect Definition nat_catch_raise:
   forall P PO PS Praise e,
-    catch_nat P PO PS Praise (raise nat e) = Praise e.
+    nat_catch P PO PS Praise (raise nat e) = Praise e.
 Proof.
   reflexivity.
 Defined.
 
-Effect Definition catch_list_nil:
+Effect Definition list_catch_nil:
   forall A P Pnil Pcons Praise,
-    catch_list A P Pnil Pcons Praise nil = Pnil.
+    list_catch A P Pnil Pcons Praise nil = Pnil.
 Proof.
   reflexivity.
 Defined.
 
-Effect Definition catch_list_cons:
+Effect Definition list_catch_cons:
   forall A P Pnil Pcons Praise a l,
-    catch_list A P Pnil Pcons Praise (cons a l) = Pcons a l (catch_list A P Pnil Pcons Praise l).
+    list_catch A P Pnil Pcons Praise (cons a l) = Pcons a l (list_catch A P Pnil Pcons Praise l).
 Proof.
   reflexivity.
 Defined.
 
-Effect Definition catch_list_raise:
+Effect Definition list_catch_raise:
   forall A P Pnil Pcons Praise e,
-    catch_list A P Pnil Pcons Praise (raise _ e) = Praise e.
+    list_catch A P Pnil Pcons Praise (raise _ e) = Praise e.
 Proof.
   reflexivity.
 Defined.
@@ -143,9 +143,9 @@ Proof.
   assert
     (H: forall l',
         @nil A = l' ->
-        (catch_list _ (fun _ => Prop) True (fun _ _ _ => True) (fun _ => False) l')).
-  - intros l' Heq. destruct Heq. rewrite catch_list_nil. exact I.
-  - intros Heq. specialize (H (raise _ e) Heq). rewrite catch_list_raise in H. exact H.
+        (list_catch _ (fun _ => Prop) True (fun _ _ _ => True) (fun _ => False) l')).
+  - intros l' Heq. destruct Heq. rewrite list_catch_nil. exact I.
+  - intros Heq. specialize (H (raise _ e) Heq). rewrite list_catch_raise in H. exact H.
 Defined.
 Effect Translate nil_not_raise.
 
@@ -155,10 +155,10 @@ Proof.
   assert (
       H: forall l',
         cons a l = l' ->
-        (catch_list _ (fun _ => Prop) True (fun _ _ _ => True) (fun _ => False) l')
+        (list_catch _ (fun _ => Prop) True (fun _ _ _ => True) (fun _ => False) l')
     ).
-  - intros l' Heq. destruct Heq. rewrite catch_list_cons. exact I.
-  - intros Heq. specialize (H (raise _ e) Heq). rewrite catch_list_raise in H. exact H.
+  - intros l' Heq. destruct Heq. rewrite list_catch_cons. exact I.
+  - intros Heq. specialize (H (raise _ e) Heq). rewrite list_catch_raise in H. exact H.
 Defined.
 Effect Translate cons_not_raise.
 
@@ -168,14 +168,14 @@ Proof.
   assert (
       H: forall n',
         n <= n' ->
-        catch_nat (fun _ => Prop) True (fun _ _ => True) (fun _ => False) n'
+        nat_catch (fun _ => Prop) True (fun _ _ => True) (fun _ => False) n'
     ).
   - intros n' Hle. induction Hle.
-    + rewrite catch_nat_O. exact I.
-    + rewrite catch_nat_S. exact I.
-    + rewrite catch_nat_S. exact I.
+    + rewrite nat_catch_O. exact I.
+    + rewrite nat_catch_S. exact I.
+    + rewrite nat_catch_S. exact I.
   - intros Hle. specialize (H (raise _ e) Hle).
-    rewrite catch_nat_raise in H.
+    rewrite nat_catch_raise in H.
     exact H.
 Defined.
 Effect Translate raise_not_le.
@@ -207,10 +207,10 @@ Proof.
   assert (
       H: forall m,
         0 = m ->
-        catch_nat (fun _ => Prop) True (fun _ _ => False) (fun _ => False) m
+        nat_catch (fun _ => Prop) True (fun _ _ => False) (fun _ => False) m
     ).
-  + intros m Heq. induction Heq. rewrite catch_nat_O. exact I.
-  + intros Heq. specialize (H (S n) (eq_sym Heq)). rewrite catch_nat_S in H. exact H.
+  + intros m Heq. induction Heq. rewrite nat_catch_O. exact I.
+  + intros Heq. specialize (H (S n) (eq_sym Heq)). rewrite nat_catch_S in H. exact H.
 Defined.
 Effect Translate S_not_O.
 
@@ -219,13 +219,13 @@ Theorem O_not_le_O :
 Proof.
   assert (
       H: forall n m,
-        n <= m -> catch_nat (fun _ => Prop) True (fun _ _ => m = 0 -> False) (fun _ => m = 0) n
+        n <= m -> nat_catch (fun _ => Prop) True (fun _ _ => m = 0 -> False) (fun _ => m = 0) n
     ).
   - intros n m Hle. induction Hle.
-    + rewrite catch_nat_O . exact I.
-    + rewrite catch_nat_O . exact I.
-    + rewrite catch_nat_S. intros Heq. exact (S_not_O m Heq).
-  - intros Hle. specialize (H (S 0) 0 Hle). rewrite catch_nat_S in H. exact (H eq_refl).
+    + rewrite nat_catch_O . exact I.
+    + rewrite nat_catch_O . exact I.
+    + rewrite nat_catch_S. intros Heq. exact (S_not_O m Heq).
+  - intros Hle. specialize (H (S 0) 0 Hle). rewrite nat_catch_S in H. exact (H eq_refl).
 Defined.
 Effect Translate O_not_le_O.
 
@@ -238,7 +238,7 @@ Theorem non_empty_list_distinct_tail_raise:
   forall A e (l: list A),
     0 < length l -> tail l e <> raise _ e.
 Proof.
-  intros A e l; induction l using catch_list_prop; cbn.
+  intros A e l; induction l using list_catch_prop; cbn.
   - intros Hle Heq. exact (O_not_le_O Hle).
   - intros Hle Heq. apply le_S_n in Hle. rewrite Heq in Hle.
     rewrite list_rect_raise in Hle. exact(raise_not_le 0 e Hle).
@@ -248,17 +248,17 @@ Defined.
 Effect Translate non_empty_list_distinct_tail_raise.
 
 Definition list_param_deep {A} `{Param A} (l: list  A): Prop :=
-  catch_list A (fun _ => Prop) True (fun a _ p => p /\ param a) (fun _ => False) l.
+  list_catch A (fun _ => Prop) True (fun a _ p => p /\ param a) (fun _ => False) l.
 Effect Translate list_param_deep.
 
 Theorem non_empty_deep_param_list_head_not_raise:
   forall A `{Param A} e (l: list A),
     length l > 0 -> list_param_deep l -> head l e <> raise _ e.
 Proof.
-  intros A Param e l; induction l using catch_list_prop; cbn; intros Hle HP Hhead.
+  intros A Param e l; induction l using list_catch_prop; cbn; intros Hle HP Hhead.
   - exact (O_not_le_O Hle).
-  - unfold list_param_deep in HP. rewrite catch_list_cons in HP. destruct HP as [_ H1].
+  - unfold list_param_deep in HP. rewrite list_catch_cons in HP. destruct HP as [_ H1].
     rewrite Hhead in H1. exact (param_correct e H1).
-  - unfold list_param_deep in HP. rewrite catch_list_raise in HP. exact HP.
+  - unfold list_param_deep in HP. rewrite list_catch_raise in HP. exact HP.
 Defined.
 Effect Translate non_empty_deep_param_list_head_not_raise.
