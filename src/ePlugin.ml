@@ -305,7 +305,6 @@ let try_instantiate_parametric_modality err translator (name, n) ext  =
       false
       Declarations.(mind.mind_packets)
   in
-  let _ = Feedback.msg_info (Pp.bool has_record) in
   if Array.exists (fun i -> one_ind_in_prop i) arity_mind || has_record then []
   else instantiate_parametric_modality err translator (name, n) ext
 
