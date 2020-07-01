@@ -18,6 +18,7 @@ type effect = global_reference option
 exception MissingGlobal of effect * global_reference
 exception MissingPrimitive of global_reference
 exception MatchEliminationNotSupportedOnTranslation
+exception BadFormingCatchInduction
 
 type 'a global_translation =
 | GlobGen of 'a
@@ -1341,7 +1342,11 @@ module InductionCatch = struct
          false
     | Prod (na, ty, body) ->
        is_predicate_e sigma (pred_index + 1) body
-    | _ -> raise Not_found
+    | Const _ ->
+       false
+    | Rel _ ->
+       false
+    | _ -> raise BadFormingCatchInduction
 
   type catch_gen =
     | UseCase
